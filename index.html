@@ -1,0 +1,2269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>초등 4학년 스마트 영어 문제집 (GitHub 주간 연동 & Galaxy Tab Edition)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    input, textarea {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    body {
+      font-family: 'Inter', 'Noto Sans KR', sans-serif;
+      background-color: #f0f4f8;
+      color: #1e293b;
+      overflow-x: hidden;
+    }
+    /* Primary 4-line English note background for S-Pen writing */
+    .english-lines-canvas-wrap {
+      position: relative;
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      border-radius: 1rem;
+      overflow: hidden;
+      touch-action: none;
+    }
+    .english-guide-lines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 16px;
+    }
+    .line-top { border-bottom: 2px solid #94a3b8; height: 28px; }
+    .line-mid { border-bottom: 2px dashed #f87171; height: 34px; }
+    .line-base { border-bottom: 2px solid #3b82f6; height: 34px; }
+    .line-bottom { border-bottom: 2px solid #94a3b8; height: 28px; }
+
+    .trace-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 76px;
+      letter-spacing: 6px;
+      color: rgba(148, 163, 184, 0.28);
+      transform: translateY(-4px);
+    }
+    .tap-btn {
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+    .tap-btn:active {
+      transform: scale(0.97);
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Header Optimized for Galaxy Tab Landscape/Portrait -->
+  <header class="bg-indigo-600 text-white shadow-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-400 text-indigo-950 font-black flex items-center justify-center text-xl shadow-sm">
+          E4
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-lg sm:text-xl tracking-tight">초등 4학년 스마트 영어 문제집</h1>
+            <span id="currentPackTitleBadge" class="hidden sm:inline-block text-xs bg-indigo-500/80 border border-indigo-400 px-2.5 py-0.5 rounded-full font-semibold">기본 1~5단원 (25단어)</span>
+          </div>
+          <p class="text-xs text-indigo-100">갤럭시탭 S-Pen 필기 & GitHub 주간 문제 자동 동기화</p>
+        </div>
+      </div>
+
+      <!-- Unit Selector, GitHub Sync & Voice Controls -->
+      <div class="flex flex-wrap items-center gap-2">
+        <label for="unitSelect" class="sr-only">단원/주차 선택</label>
+        <select id="unitSelect" class="bg-indigo-700 hover:bg-indigo-800 text-white text-xs sm:text-sm font-semibold rounded-xl px-3 py-2 border border-indigo-400 focus:outline-none focus:ring-2 focus:ring-amber-300 cursor-pointer">
+          <option value="all">전체 단원 (Unit 1~5 통합 · 25단어)</option>
+          <option value="u1">Unit 1. 감정과 상태 (Feelings)</option>
+          <option value="u2">Unit 2. 지금 하는 일 (Actions)</option>
+          <option value="u3">Unit 3. 물건의 위치 (Locations)</option>
+          <option value="u4">Unit 4. 직업과 장래희망 (Jobs)</option>
+          <option value="u5">Unit 5. 하루 일과와 시각 (Daily Routine)</option>
+        </select>
+
+        <button id="openGithubModalBtn" type="button" class="tap-btn bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-300 text-xs sm:text-sm font-extrabold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm">
+          <span>🔄 주간 문제 갱신 (GitHub)</span>
+        </button>
+
+        <button id="speedToggleBtn" type="button" class="tap-btn bg-indigo-700 hover:bg-indigo-800 border border-indigo-400 text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5" title="원어민 발음 속도 조절">
+          <span>🔊 발음 속도:</span>
+          <span id="speedLabel" class="text-amber-300 font-bold">보통 (0.9x)</span>
+        </button>
+
+        <button id="soundToggleBtn" type="button" class="tap-btn bg-indigo-700 hover:bg-indigo-800 border border-indigo-400 text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl flex items-center gap-1" title="효과음 켜기/끄기">
+          <span id="soundIcon">🔔 효과음 ON</span>
+        </button>
+
+        <div class="bg-indigo-900/60 border border-indigo-400/50 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+          <span class="text-amber-300 text-base">⭐</span>
+          <span id="totalScoreBadge" class="font-extrabold text-sm">0점</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-indigo-700/90 border-t border-indigo-500/40">
+      <div class="max-w-7xl mx-auto px-2 sm:px-4 flex overflow-x-auto custom-scroll">
+        <button data-tab="writing" class="nav-tab-btn flex-1 min-w-[125px] py-3 px-3 text-sm font-bold border-b-4 border-amber-400 bg-indigo-800/70 text-amber-300 flex items-center justify-center gap-2 whitespace-nowrap">
+          <span>✍️</span><span>1. 단어 쓰기</span>
+        </button>
+        <button data-tab="listening" class="nav-tab-btn flex-1 min-w-[125px] py-3 px-3 text-sm font-bold border-b-4 border-transparent text-indigo-100 hover:text-white flex items-center justify-center gap-2 whitespace-nowrap">
+          <span>🎧</span><span>2. 발음 듣기</span>
+        </button>
+        <button data-tab="grammar" class="nav-tab-btn flex-1 min-w-[125px] py-3 px-3 text-sm font-bold border-b-4 border-transparent text-indigo-100 hover:text-white flex items-center justify-center gap-2 whitespace-nowrap">
+          <span>🧩</span><span>3. 초등 문법</span>
+        </button>
+        <button data-tab="sentence" class="nav-tab-btn flex-1 min-w-[135px] py-3 px-3 text-sm font-bold border-b-4 border-transparent text-indigo-100 hover:text-white flex items-center justify-center gap-2 whitespace-nowrap">
+          <span>📝</span><span>4. 문장 완성하기</span>
+        </button>
+        <button data-tab="vocabtest" class="nav-tab-btn flex-1 min-w-[125px] py-3 px-3 text-sm font-bold border-b-4 border-transparent text-indigo-100 hover:text-white flex items-center justify-center gap-2 whitespace-nowrap">
+          <span>🏆</span><span>5. 단어 시험</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- ==================== GITHUB WEEKLY SYNC & QUESTION GENERATOR MODAL ==================== -->
+  <div id="githubSyncModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <!-- Modal Header -->
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🐙</span>
+          <div>
+            <h2 class="font-extrabold text-base sm:text-lg">GitHub 주간 문제 연동 & 새 주차 문제 생성기</h2>
+            <p class="text-xs text-slate-300">매주 단어만 입력하면 5가지 영역(쓰기·발음·문법·문장·시험) 문제가 자동 생성되며 GitHub로 배포할 수 있습니다.</p>
+          </div>
+        </div>
+        <button id="closeGithubModalBtn" type="button" class="tap-btn text-slate-300 hover:text-white text-sm font-bold px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700">
+          ✕ 닫기
+        </button>
+      </div>
+
+      <!-- Modal Sub-tabs -->
+      <div class="bg-slate-100 px-6 pt-3 border-b border-slate-200 flex gap-2 overflow-x-auto">
+        <button data-modal-tab="sync" class="modal-tab-btn px-4 py-2.5 rounded-t-xl font-extrabold text-xs sm:text-sm bg-white text-indigo-700 border-t border-x border-slate-200">
+          1️⃣ GitHub 자동 동기화 설정
+        </button>
+        <button data-modal-tab="builder" class="modal-tab-btn px-4 py-2.5 rounded-t-xl font-extrabold text-xs sm:text-sm text-slate-600 hover:text-slate-900">
+          2️⃣ 간편 주간 단어 입력 (자동 문제 생성)
+        </button>
+        <button data-modal-tab="guide" class="modal-tab-btn px-4 py-2.5 rounded-t-xl font-extrabold text-xs sm:text-sm text-slate-600 hover:text-slate-900">
+          3️⃣ GitHub 저장소 세팅 안내
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 sm:p-6 overflow-y-auto custom-scroll flex-1 space-y-5">
+
+        <!-- SUB-TAB 1: GITHUB URL FETCH & LOCAL FILE UPLOAD -->
+        <div id="modalViewSync" class="space-y-5">
+          <div class="bg-indigo-50/80 border border-indigo-200 rounded-2xl p-4 space-y-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <h3 class="font-extrabold text-sm sm:text-base text-indigo-950">🔗 GitHub 저장소에서 최신 주간 문제 불러오기</h3>
+              <span id="syncStatusBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800">기본 내장 데이터 사용 중</span>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              GitHub Pages에 함께 올려둔 <code class="bg-white px-1.5 py-0.5 rounded border border-indigo-200 font-mono text-indigo-700">questions.json</code> (같은 폴더면 자동 인식) 또는 Raw JSON 주소를 입력해 두면, 앱을 열 때마다 최신 주차 문제를 자동으로 가져옵니다.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input id="githubJsonUrlInput" type="url" placeholder="예: https://아이디.github.io/저장소이름/questions.json 또는 ./questions.json" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-mono focus:outline-none focus:border-indigo-600" />
+              <button id="fetchGithubNowBtn" type="button" class="tap-btn bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs sm:text-sm px-4 py-2.5 rounded-xl shrink-0">
+                🔄 지금 GitHub에서 불러오기
+              </button>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <span class="text-[11px] text-slate-500">💡 팁: GitHub Pages 같은 폴더에 <code class="font-mono">index.html</code>과 <code class="font-mono">questions.json</code>을 두면 주소 입력 없이도 시작 시 자동 로드됩니다.</span>
+              <button id="restoreDefaultPackBtn" type="button" class="text-xs font-bold text-rose-600 hover:underline">
+                기본 1~5단원(25단어)으로 되돌리기
+              </button>
+            </div>
+          </div>
+
+          <!-- Direct JSON File Upload / Download -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between gap-3">
+              <div>
+                <h4 class="font-extrabold text-sm text-slate-800">📥 GitHub 업로드용 `questions.json` 내려받기</h4>
+                <p class="text-xs text-slate-500 mt-1">현재 앱에 적용된 단어·문법·문장 데이터를 `questions.json` 파일로 저장하여 GitHub 저장소에 바로 올릴 수 있습니다.</p>
+              </div>
+              <button id="downloadJsonBtn" type="button" class="tap-btn w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm">
+                💾 questions.json 파일 다운로드
+              </button>
+            </div>
+
+            <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between gap-3">
+              <div>
+                <h4 class="font-extrabold text-sm text-slate-800">📂 내 기기에서 `.json` 문제 파일 바로 열기</h4>
+                <p class="text-xs text-slate-500 mt-1">GitHub에 올리기 전이거나 오프라인일 때, 태블릿/PC에 있는 JSON 문제 파일을 직접 선택해 즉시 적용합니다.</p>
+              </div>
+              <label class="tap-btn w-full py-2.5 rounded-xl bg-white hover:bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-bold text-xs sm:text-sm text-center cursor-pointer">
+                📁 JSON 문제 파일 선택하기
+                <input id="uploadJsonFileInput" type="file" accept=".json,application/json" class="hidden" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 2: QUICK WEEKLY WORD BUILDER (AUTO-GENERATES ALL 5 SECTIONS) -->
+        <div id="modalViewBuilder" class="hidden space-y-4">
+          <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+            <h3 class="font-extrabold text-sm sm:text-base text-amber-950">✨ 단어와 예문만 적으면 5가지 영역 문제가 자동으로 만들어집니다!</h3>
+            <p class="text-xs text-slate-700 leading-relaxed">
+              한 줄에 하나씩 <code class="bg-white px-1.5 py-0.5 rounded border border-amber-300 font-mono">단원명 | 영어단어 | 한글뜻 | 발음 | 영어예문 | 예문해석</code> 형식으로 입력하거나, Gemini에게 <strong>"이번 주 4학년 영어 문제 15개 이 형식으로 만들어줘"</strong>라고 요청해 붙여넣으세요. 문법 빈칸 문제와 문장 카드 배열까지 자동으로 생성됩니다.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <label for="customPackTitleInput" class="text-xs font-extrabold text-slate-700">문제집 제목:</label>
+              <input id="customPackTitleInput" type="text" value="11월 3주차 주간 영어 문제집" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-bold" />
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="loadSampleWeekBtn" type="button" class="tap-btn text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200">
+                📋 샘플 주차(2주차 동물·날씨·취미 12단어) 불러오기
+              </button>
+            </div>
+          </div>
+
+          <textarea id="quickBuilderTextarea" rows="8" class="w-full p-3.5 rounded-2xl border border-slate-300 font-mono text-xs sm:text-sm focus:outline-none focus:border-indigo-600 leading-relaxed" placeholder="Week 1. 날씨와 계절 | sunny | 화창한, 맑은 | 써니 | It is sunny and warm today. | 오늘은 화창하고 따뜻해요.
+Week 1. 날씨와 계절 | cloudy | 흐린 | 클라우디 | The sky is very cloudy now. | 지금 하늘이 매우 흐려요.
+Week 1. 날씨와 계절 | winter | 겨울 | 윈터 | I like white snow in winter. | 나는 겨울의 하얀 눈을 좋아해요."></textarea>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <button id="applyQuickBuilderBtn" type="button" class="tap-btn flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-sm">
+              ✅ 지금 앱에 바로 적용하기 (5개 영역 자동 생성)
+            </button>
+            <button id="exportQuickBuilderJsonBtn" type="button" class="tap-btn px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm">
+              💾 GitHub 업로드용 questions.json으로 저장
+            </button>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 3: GITHUB REPOSITORY SETUP GUIDE -->
+        <div id="modalViewGuide" class="hidden space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <h3 class="font-extrabold text-base text-slate-900">🚀 일정관리표처럼 GitHub Pages로 매주 문제 갱신하는 법</h3>
+            <ol class="list-decimal list-inside space-y-2.5 font-medium">
+              <li>
+                <strong>최초 1회 업로드:</strong> GitHub에 새 저장소(예: <code class="bg-white px-1.5 py-0.5 rounded border font-mono">english-workbook</code>)를 만들고, 이 앱 파일 이름을 <code class="bg-white px-1.5 py-0.5 rounded border font-mono">index.html</code>로 바꾼 뒤 <code class="bg-white px-1.5 py-0.5 rounded border font-mono">questions.json</code> 파일과 함께 업로드합니다.
+              </li>
+              <li>
+                <strong>GitHub Pages 활성화:</strong> 저장소의 <strong>Settings → Pages → Branch (main) Save</strong>를 누르면 <code class="bg-white px-1.5 py-0.5 rounded border font-mono">https://아이디.github.io/english-workbook/</code> 주소가 생성됩니다.
+              </li>
+              <li>
+                <strong>갤럭시탭 홈 화면에 등록:</strong> 갤럭시탭 삼성 인터넷이나 크롬에서 위 주소를 열고 <strong>[홈 화면에 추가]</strong>를 해둡니다.
+              </li>
+              <li>
+                <strong>매주 문제 갱신하기:</strong>
+                <ul class="list-disc list-inside pl-4 mt-1 space-y-1 text-slate-600">
+                  <li>이 창 상단의 <strong>[2️⃣ 간편 주간 단어 입력]</strong> 탭에서 이번 주 단어를 넣고 <strong>[questions.json으로 저장]</strong>을 누릅니다.</li>
+                  <li>GitHub 저장소에 해당 <code class="font-mono">questions.json</code> 파일만 덮어쓰기(Commit)하면, 갤럭시탭에서 앱을 열 때 <strong>자동으로 새 주차 문제가 반영</strong>됩니다!</li>
+                </ul>
+              </li>
+            </ol>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Workspace Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-4">
+
+    <!-- Quick Progress Overview Bar -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span class="text-slate-600 font-medium">쓰기 완료:</span>
+          <strong id="statWritten" class="text-slate-900">0 / 25</strong>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+          <span class="text-slate-600 font-medium">발음 퀴즈 정답:</span>
+          <strong id="statListening" class="text-slate-900">0문제</strong>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+          <span class="text-slate-600 font-medium">문법 정답:</span>
+          <strong id="statGrammar" class="text-slate-900">0 / 15</strong>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+          <span class="text-slate-600 font-medium">문장 완성:</span>
+          <strong id="statSentence" class="text-slate-900">0 / 15</strong>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span id="toastBanner" class="hidden text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300"></span>
+        <button id="resetProgressBtn" type="button" class="tap-btn text-xs font-semibold text-slate-500 hover:text-rose-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-rose-200">
+          학습 기록 초기화
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 1: 단어 쓰기 (S-Pen & Spelling) ==================== -->
+    <section id="view-writing" class="tab-view grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+      <!-- Word List Sidebar -->
+      <div class="lg:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col max-h-[540px]">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-extrabold text-base text-slate-800 flex items-center gap-2">
+            <span>📚 단원 필수 어휘 목록</span>
+          </h2>
+          <span id="wordListCount" class="text-xs font-bold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">25개</span>
+        </div>
+        <div id="writingWordList" class="flex-1 overflow-y-auto custom-scroll space-y-1.5 pr-1"></div>
+      </div>
+
+      <!-- S-Pen Canvas & Spelling Check Panel -->
+      <div class="lg:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-col gap-4">
+        <!-- Selected Word Card -->
+        <div class="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-indigo-50 via-sky-50 to-indigo-50 p-4 rounded-2xl border border-indigo-100">
+          <div class="flex items-center gap-4">
+            <div id="writeWordEmoji" class="w-16 h-16 rounded-2xl bg-white shadow-sm border border-indigo-100 flex items-center justify-center text-4xl">
+              😊
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="writeWordUnitBadge" class="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-600 text-white">Unit 1</span>
+                <span id="writeWordPhonetic" class="text-xs text-slate-500 font-medium">[해피]</span>
+              </div>
+              <div class="flex items-baseline gap-3 mt-1">
+                <h3 id="writeWordEn" class="text-3xl sm:text-4xl font-black text-indigo-950 tracking-wide">happy</h3>
+                <span id="writeWordKo" class="text-lg sm:text-xl font-bold text-indigo-700">행복한, 기쁜</span>
+              </div>
+              <p id="writeWordExample" class="text-xs sm:text-sm text-slate-600 mt-1">예문: I am very happy today. (나는 오늘 매우 행복해요.)</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="speakCurrentWordBtn" type="button" class="tap-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-3 rounded-xl shadow-sm flex items-center gap-2 text-sm">
+              <span>🔊</span><span>단어 발음 듣기</span>
+            </button>
+            <button id="speakCurrentExampleBtn" type="button" class="tap-btn bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold px-3.5 py-3 rounded-xl text-sm">
+              <span>🗣️ 예문 듣기</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- S-Pen Drawing Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-bold text-slate-600 px-2">✒️ S펜 색상:</span>
+            <button type="button" data-color="#1e293b" class="pen-color-btn w-7 h-7 rounded-full bg-slate-800 ring-2 ring-offset-2 ring-indigo-600"></button>
+            <button type="button" data-color="#2563eb" class="pen-color-btn w-7 h-7 rounded-full bg-blue-600"></button>
+            <button type="button" data-color="#dc2626" class="pen-color-btn w-7 h-7 rounded-full bg-red-600"></button>
+            <button type="button" data-color="#059669" class="pen-color-btn w-7 h-7 rounded-full bg-emerald-600"></button>
+
+            <div class="h-5 w-px bg-slate-300 mx-1"></div>
+            <label for="penSizeRange" class="text-xs font-bold text-slate-600">굵기:</label>
+            <input id="penSizeRange" type="range" min="2" max="12" value="5" class="w-20 accent-indigo-600 cursor-pointer" />
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="toggleTraceGuideBtn" type="button" class="tap-btn text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200">
+              👁️ 따라쓰기 가이드 숨기기
+            </button>
+            <button id="clearCanvasBtn" type="button" class="tap-btn text-xs font-bold px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100">
+              🧹 지우기
+            </button>
+          </div>
+        </div>
+
+        <!-- 4-Line English Note Canvas for Galaxy Tab S-Pen -->
+        <div>
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5 px-1">
+            <span>💡 갤럭시탭 S펜 또는 손가락으로 아래 영어 4선 노트에 단어를 직접 따라 써 보세요! (2회 이상 연습 권장)</span>
+            <span id="strokeCountLabel" class="font-semibold text-indigo-600">필기 획수: 0획</span>
+          </div>
+          <div class="english-lines-canvas-wrap h-40 w-full shadow-inner">
+            <div class="english-guide-lines">
+              <div class="line-top"></div>
+              <div class="line-mid"></div>
+              <div class="line-base"></div>
+              <div class="line-bottom"></div>
+            </div>
+            <div id="canvasTraceWord" class="trace-overlay">happy</div>
+            <canvas id="spenCanvas" class="relative z-10 w-full h-full cursor-crosshair"></canvas>
+          </div>
+        </div>
+
+        <!-- Interactive Letter Tile / Keyboard Spelling Verification -->
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex flex-col gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-xs sm:text-sm font-bold text-slate-700">🔤 철자 확인하기 (알파벳 버튼을 순서대로 터치하거나 키보드로 입력해 보세요)</span>
+            <button id="resetScrambleBtn" type="button" class="text-xs font-semibold text-indigo-600 hover:underline">다시 섞기</button>
+          </div>
+
+          <!-- Answer Slots -->
+          <div id="spellingSlots" class="flex flex-wrap items-center justify-center gap-2 min-h-[52px] py-2 bg-white rounded-xl border border-slate-200 px-3"></div>
+
+          <!-- Scrambled Letter Buttons -->
+          <div id="scrambleLetters" class="flex flex-wrap items-center justify-center gap-2 py-1"></div>
+
+          <!-- Direct Input & Navigation -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
+            <div class="flex items-center gap-2">
+              <button id="prevWriteWordBtn" type="button" class="tap-btn px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 font-bold text-xs sm:text-sm">
+                ◀ 이전 단어
+              </button>
+              <button id="nextWriteWordBtn" type="button" class="tap-btn px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 font-bold text-xs sm:text-sm">
+                다음 단어 ▶
+              </button>
+            </div>
+            <button id="markWriteCompleteBtn" type="button" class="tap-btn px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-sm">
+              ✅ 이 단어 쓰기 완료 체크 (+10점)
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: 발음 듣기 (Audio Cards & Listening Quiz) ==================== -->
+    <section id="view-listening" class="tab-view hidden flex-col gap-4">
+      <!-- Mode Switcher inside Listening Tab -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-extrabold text-lg text-slate-800">🎧 원어민 발음 듣기 & 리스닝 훈련</h2>
+          <p class="text-xs text-slate-500">단어 카드를 터치해 발음을 익히고, 소리만 듣고 알맞은 뜻과 단어를 고르는 퀴즈를 풀어보세요.</p>
+        </div>
+        <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+          <button id="listenSubModeCards" type="button" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 text-white shadow-sm">
+            📇 발음 카드 학습
+          </button>
+          <button id="listenSubModeQuiz" type="button" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-700 hover:bg-white">
+            🎯 발음 듣고 맞추기 퀴즈
+          </button>
+        </div>
+      </div>
+
+      <!-- Subview 2A: Audio Flashcards Grid -->
+      <div id="listenCardsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5"></div>
+
+      <!-- Subview 2B: Listening Quiz -->
+      <div id="listenQuizContainer" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 max-w-3xl mx-auto w-full flex-col items-center text-center gap-5">
+        <div class="w-full flex items-center justify-between text-xs font-bold text-slate-500 border-b border-slate-100 pb-3">
+          <span id="listenQuizUnitLabel">리스닝 퀴즈</span>
+          <span id="listenQuizStreak" class="text-indigo-600">연속 정답: 0회 🔥</span>
+        </div>
+
+        <div class="py-2 flex flex-col items-center gap-3">
+          <button id="playListenQuizAudioBtn" type="button" class="tap-btn w-28 h-28 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex flex-col items-center justify-center gap-1 border-4 border-indigo-200">
+            <span class="text-4xl">🔊</span>
+            <span class="text-xs font-bold">다시 듣기</span>
+          </button>
+          <p class="text-sm font-semibold text-slate-600">버튼을 눌러 영어 발음을 잘 듣고, 알맞은 단어를 골라 보세요!</p>
+          <button id="playListenQuizSentenceBtn" type="button" class="tap-btn text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-200">
+            💡 힌트: 예문 발음도 들어보기
+          </button>
+        </div>
+
+        <div id="listenQuizOptions" class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full"></div>
+
+        <div id="listenQuizFeedback" class="hidden w-full p-4 rounded-xl text-sm font-bold"></div>
+
+        <button id="nextListenQuizBtn" type="button" class="tap-btn px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm">
+          다음 리스닝 문제 ▶
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: 초등 문법 (Grade 4 Core Grammar) ==================== -->
+    <section id="view-grammar" class="tab-view hidden grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+      <!-- Grammar Concept Summary Cards -->
+      <div class="lg:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col gap-3">
+        <h2 class="font-extrabold text-base text-slate-800 flex items-center gap-2">
+          <span>📘 초등 4학년 핵심 문법 노트</span>
+        </h2>
+        <p class="text-xs text-slate-500">문제를 풀기 전 핵심 규칙을 터치해서 확인해 보세요.</p>
+
+        <div class="space-y-2.5 text-xs sm:text-sm">
+          <div class="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100">
+            <div class="font-extrabold text-indigo-900 mb-1">1. be동사 (am / are / is)</div>
+            <p class="text-slate-700 leading-relaxed">• <strong>I am</strong> (~이다/있다)<br/>• <strong>You / We / They are</strong><br/>• <strong>He / She / It / 단수명사 is</strong></p>
+          </div>
+          <div class="p-3 rounded-xl bg-emerald-50/70 border border-emerald-100">
+            <div class="font-extrabold text-emerald-900 mb-1">2. 현재진행형 (be동사 + ~ing)</div>
+            <p class="text-slate-700 leading-relaxed">• '지금 ~하고 있는 중이다'를 뜻해요.<br/>• 예: She <strong>is reading</strong> a book.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-amber-50/70 border border-amber-100">
+            <div class="font-extrabold text-amber-900 mb-1">3. 위치 전치사 (in / on / under)</div>
+            <p class="text-slate-700 leading-relaxed">• <strong>in</strong> (~안에), <strong>on</strong> (~위에), <strong>under</strong> (~아래에)<br/>• Where is the bag? It's <strong>under</strong> the desk.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-purple-50/70 border border-purple-100">
+            <div class="font-extrabold text-purple-900 mb-1">4. 조동사 Can & 일반동사 3인칭</div>
+            <p class="text-slate-700 leading-relaxed">• <strong>can + 동사원형</strong> (~할 수 있다)<br/>• 주어가 He/She/It일 때 일반동사 뒤에 <strong>-s/-es</strong>!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Grammar Quiz Area -->
+      <div class="lg:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 flex flex-col gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span id="grammarCategoryBadge" class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-purple-100 text-purple-800">be동사</span>
+            <span id="grammarQuestionCounter" class="text-sm font-bold text-slate-600">문제 1 / 15</span>
+          </div>
+          <button id="speakGrammarSentenceBtn" type="button" class="tap-btn text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-200">
+            🔊 문장 발음 듣기
+          </button>
+        </div>
+
+        <div class="py-4 px-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-2">
+          <p id="grammarKoPrompt" class="text-sm sm:text-base font-bold text-indigo-700">우리말 뜻: 나는 오늘 매우 행복해요.</p>
+          <p id="grammarEnPrompt" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-wide">I ( ___ ) very happy today.</p>
+        </div>
+
+        <div id="grammarOptionsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+
+        <!-- Grammar Explanation Box -->
+        <div id="grammarFeedbackBox" class="hidden p-4 rounded-2xl border text-sm space-y-1"></div>
+
+        <!-- Question Pagination -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          <button id="prevGrammarBtn" type="button" class="tap-btn px-4 py-2.5 rounded-xl border border-slate-300 bg-white font-bold text-xs sm:text-sm text-slate-700">
+            ◀ 이전 문제
+          </button>
+          <div id="grammarDots" class="flex flex-wrap items-center gap-1.5"></div>
+          <button id="nextGrammarBtn" type="button" class="tap-btn px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm">
+            다음 문제 ▶
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: 문장 완성하기 (Word Order & Cloze Builder) ==================== -->
+    <section id="view-sentence" class="tab-view hidden flex-col gap-4">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 max-w-4xl mx-auto w-full flex flex-col gap-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <span id="sentenceUnitBadge" class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">Unit 1 표현</span>
+            <h2 class="font-extrabold text-lg text-slate-800 mt-1">📝 단어 카드를 터치해 올바른 영어 문장을 완성하세요!</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="sentenceProgressText" class="text-sm font-bold text-slate-600">1 / 15</span>
+            <button id="speakTargetSentenceBtn" type="button" class="tap-btn bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5">
+              <span>🔊</span><span>문장 발음 힌트</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Korean Meaning & Situation Prompt -->
+        <div class="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
+          <div id="sentenceEmoji" class="text-4xl bg-white w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm border border-amber-100">
+            🎒
+          </div>
+          <div>
+            <div class="text-xs font-bold text-amber-800 uppercase">우리말 문장</div>
+            <div id="sentenceKoText" class="text-lg sm:text-xl font-black text-slate-900 mt-0.5">가방이 책상 아래에 있어요.</div>
+            <div id="sentenceGrammarTip" class="text-xs text-slate-600 mt-1">힌트: 사물의 위치를 말할 때는 It is + 전치사(in/on/under) + 더(the) + 장소 순서로 써요.</div>
+          </div>
+        </div>
+
+        <!-- Constructed Sentence Tray -->
+        <div>
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+            <span>👇 완성 중인 문장 (단어 카드를 다시 터치하면 내려놓을 수 있어요)</span>
+            <button id="clearSentenceTrayBtn" type="button" class="text-rose-600 font-bold hover:underline">전체 비우기</button>
+          </div>
+          <div id="sentenceAnswerTray" class="min-h-[68px] p-3 rounded-2xl bg-slate-50 border-2 border-dashed border-indigo-300 flex flex-wrap items-center gap-2"></div>
+        </div>
+
+        <!-- Word Bank Cards -->
+        <div>
+          <div class="text-xs text-slate-500 mb-1.5">📦 단어 카드 상자 (순서대로 터치하세요)</div>
+          <div id="sentenceWordBank" class="min-h-[64px] p-3 rounded-2xl bg-white border border-slate-200 flex flex-wrap items-center justify-center gap-2.5"></div>
+        </div>
+
+        <!-- Feedback Banner -->
+        <div id="sentenceFeedback" class="hidden p-4 rounded-xl text-sm font-bold"></div>
+
+        <!-- Action Controls -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          <div class="flex items-center gap-2">
+            <button id="prevSentenceBtn" type="button" class="tap-btn px-4 py-2.5 rounded-xl border border-slate-300 bg-white font-bold text-xs sm:text-sm text-slate-700">
+              ◀ 이전 문장
+            </button>
+            <button id="nextSentenceBtn" type="button" class="tap-btn px-4 py-2.5 rounded-xl border border-slate-300 bg-white font-bold text-xs sm:text-sm text-slate-700">
+              다음 문장 ▶
+            </button>
+          </div>
+          <button id="checkSentenceBtn" type="button" class="tap-btn px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-sm">
+            ✔ 정답 확인하기
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: 단어 시험 (10-Question Vocab Test & Wrong Answer Review) ==================== -->
+    <section id="view-vocabtest" class="tab-view hidden flex-col gap-4">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6 max-w-4xl mx-auto w-full flex flex-col gap-5">
+        <!-- Test Setup Header -->
+        <div id="testSetupPanel" class="flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="font-extrabold text-xl text-slate-800">🏆 초등 4학년 실전 단어 시험</h2>
+              <p class="text-xs sm:text-sm text-slate-500 mt-0.5">선택한 단원의 단어 중 최대 10문제가 출제됩니다. 객관식과 철자 직접 입력(주관식) 모드를 선택할 수 있어요.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="testTypeSelect" class="bg-slate-100 border border-slate-300 text-slate-800 text-xs sm:text-sm font-bold rounded-xl px-3 py-2.5">
+                <option value="mixed">혼합형 (객관식 + 스펠링 주관식)</option>
+                <option value="choice">객관식 (뜻/발음 보고 단어 고르기)</option>
+                <option value="spelling">주관식 (뜻과 발음 듣고 스펠링 쓰기)</option>
+              </select>
+              <button id="startNewTestBtn" type="button" class="tap-btn bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-sm">
+                🚀 새 시험 시작하기
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Question Card -->
+        <div id="testActivePanel" class="flex flex-col gap-4 border-t border-slate-100 pt-4">
+          <div class="flex items-center justify-between">
+            <span id="testQuestionNumber" class="text-sm font-extrabold text-indigo-600">문항 1 / 10</span>
+            <span id="testCurrentScore" class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-full">현재 맞힌 개수: 0개</span>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col items-center text-center gap-3">
+            <div id="testPromptEmoji" class="text-5xl">🍎</div>
+            <div id="testPromptTypeBadge" class="text-xs font-bold text-slate-500">다음 우리말 뜻과 발음에 알맞은 영어 단어를 고르세요.</div>
+            <div id="testPromptMeaning" class="text-2xl sm:text-3xl font-black text-slate-900">배고픈</div>
+            <button id="testSpeakPromptBtn" type="button" class="tap-btn text-xs font-bold text-indigo-600 bg-white px-3.5 py-1.5 rounded-full border border-indigo-200 shadow-sm">
+              🔊 발음 다시 듣기
+            </button>
+          </div>
+
+          <!-- Multiple Choice Area -->
+          <div id="testChoiceBox" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+
+          <!-- Spelling Input Area -->
+          <div id="testSpellingBox" class="hidden flex-col items-center gap-3">
+            <div class="flex flex-wrap items-center justify-center gap-2 w-full max-w-md">
+              <input id="testSpellingInput" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="영어 단어를 입력하세요" class="flex-1 text-center text-xl font-bold px-4 py-3 rounded-xl border-2 border-indigo-300 focus:outline-none focus:border-indigo-600" />
+              <button id="submitTestSpellingBtn" type="button" class="tap-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3 rounded-xl text-sm">
+                제출
+              </button>
+            </div>
+            <p id="testSpellingHint" class="text-xs text-slate-500"></p>
+          </div>
+
+          <div id="testItemFeedback" class="hidden p-3.5 rounded-xl text-sm font-bold text-center"></div>
+
+          <div class="flex justify-end">
+            <button id="nextTestQuestionBtn" type="button" class="hidden tap-btn bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm">
+              다음 문제 ▶
+            </button>
+          </div>
+        </div>
+
+        <!-- Test Result & Wrong Answer Note -->
+        <div id="testResultPanel" class="hidden flex-col gap-4 border-t border-slate-100 pt-4">
+          <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-2xl text-center space-y-2">
+            <div class="text-4xl" id="testResultMedal">🏅</div>
+            <h3 class="text-2xl font-black" id="testResultTitle">단어 시험 완료!</h3>
+            <p class="text-lg font-bold text-amber-300" id="testResultScoreText">100점 (10 / 10 정답)</p>
+            <p class="text-xs text-indigo-100" id="testResultComment">참 잘했어요! 틀린 단어가 있다면 아래 오답 노트를 터치해 발음을 다시 들어보세요.</p>
+          </div>
+
+          <div>
+            <h4 class="font-extrabold text-sm text-slate-700 mb-2">📋 문항별 정오표 및 오답 노트 (터치하면 발음이 재생됩니다)</h4>
+            <div id="testReviewList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // ==================== 1. DEFAULT CURRICULUM DATA (2022 Revised 4th Grade Elementary English) ====================
+    const DEFAULT_VOCAB_DATA = [
+      // Unit 1: 감정과 상태 (Feelings & States)
+      { id: 'w1', unit: 'u1', unitName: 'Unit 1. 감정과 상태', en: 'happy', ko: '행복한, 기쁜', phonetic: '해피', emoji: '😊', exEn: 'I am very happy today.', exKo: '나는 오늘 매우 행복해요.' },
+      { id: 'w2', unit: 'u1', unitName: 'Unit 1. 감정과 상태', en: 'angry', ko: '화난', phonetic: '앵그리', emoji: '😠', exEn: 'Are you angry with me?', exKo: '나에게 화가 났니?' },
+      { id: 'w3', unit: 'u1', unitName: 'Unit 1. 감정과 상태', en: 'tired', ko: '피곤한', phonetic: '타이어드', emoji: '🥱', exEn: 'He is tired after soccer.', exKo: '그는 축구를 한 뒤에 피곤해요.' },
+      { id: 'w4', unit: 'u1', unitName: 'Unit 1. 감정과 상태', en: 'hungry', ko: '배고픈', phonetic: '헝그리', emoji: '🍽️', exEn: 'I am hungry. Let us eat lunch.', exKo: '배가 고파요. 점심을 먹어요.' },
+      { id: 'w5', unit: 'u1', unitName: 'Unit 1. 감정과 상태', en: 'thirsty', ko: '목마른', phonetic: '썰스티', emoji: '🥤', exEn: 'She is thirsty. She wants water.', exKo: '그녀는 목이 말라요. 물을 원해요.' },
+
+      // Unit 2: 지금 하는 일 (Actions)
+      { id: 'w6', unit: 'u2', unitName: 'Unit 2. 지금 하는 일', en: 'reading', ko: '읽고 있는', phonetic: '리딩', emoji: '📖', exEn: 'She is reading a comic book.', exKo: '그녀는 만화책을 읽고 있어요.' },
+      { id: 'w7', unit: 'u2', unitName: 'Unit 2. 지금 하는 일', en: 'cooking', ko: '요리하고 있는', phonetic: '쿠킹', emoji: '🍳', exEn: 'My dad is cooking dinner.', exKo: '우리 아빠는 저녁을 요리하고 계세요.' },
+      { id: 'w8', unit: 'u2', unitName: 'Unit 2. 지금 하는 일', en: 'cleaning', ko: '청소하고 있는', phonetic: '클리닝', emoji: '🧹', exEn: 'I am cleaning my room now.', exKo: '나는 지금 내 방을 청소하고 있어요.' },
+      { id: 'w9', unit: 'u2', unitName: 'Unit 2. 지금 하는 일', en: 'sleeping', ko: '자고 있는', phonetic: '슬리핑', emoji: '😴', exEn: 'The baby is sleeping on the bed.', exKo: '아기가 침대에서 자고 있어요.' },
+      { id: 'w10', unit: 'u2', unitName: 'Unit 2. 지금 하는 일', en: 'dancing', ko: '춤추고 있는', phonetic: '댄싱', emoji: '💃', exEn: 'They are dancing together.', exKo: '그들은 함께 춤을 추고 있어요.' },
+
+      // Unit 3: 물건의 위치 (Locations & Objects)
+      { id: 'w11', unit: 'u3', unitName: 'Unit 3. 물건의 위치', en: 'under', ko: '~아래에', phonetic: '언더', emoji: '⬇️', exEn: 'The ball is under the chair.', exKo: '공이 의자 아래에 있어요.' },
+      { id: 'w12', unit: 'u3', unitName: 'Unit 3. 물건의 위치', en: 'behind', ko: '~뒤에', phonetic: '비하인드', emoji: '🫣', exEn: 'The cat is behind the door.', exKo: '고양이가 문 뒤에 있어요.' },
+      { id: 'w13', unit: 'u3', unitName: 'Unit 3. 물건의 위치', en: 'watch', ko: '손목시계', phonetic: '워치', emoji: '⌚', exEn: 'Where is my new watch?', exKo: '내 새 손목시계가 어디에 있지?' },
+      { id: 'w14', unit: 'u3', unitName: 'Unit 3. 물건의 위치', en: 'umbrella', ko: '우산', phonetic: '엄브렐러', emoji: '☂️', exEn: 'Your umbrella is in the box.', exKo: '너의 우산은 상자 안에 있어.' },
+      { id: 'w15', unit: 'u3', unitName: 'Unit 3. 물건의 위치', en: 'glasses', ko: '안경', phonetic: '글래시즈', emoji: '👓', exEn: 'My glasses are on the desk.', exKo: '내 안경은 책상 위에 있어요.' },
+
+      // Unit 4: 직업과 장래희망 (Jobs)
+      { id: 'w16', unit: 'u4', unitName: 'Unit 4. 직업과 장래희망', en: 'pilot', ko: '비행기 조종사', phonetic: '파일럿', emoji: '🧑‍✈️', exEn: 'He is a brave pilot.', exKo: '그는 용감한 비행기 조종사예요.' },
+      { id: 'w17', unit: 'u4', unitName: 'Unit 4. 직업과 장래희망', en: 'scientist', ko: '과학자', phonetic: '사이언티스트', emoji: '🔬', exEn: 'I want to be a scientist.', exKo: '나는 과학자가 되고 싶어요.' },
+      { id: 'w18', unit: 'u4', unitName: 'Unit 4. 직업과 장래희망', en: 'firefighter', ko: '소방관', phonetic: '파이어파이터', emoji: '🚒', exEn: 'My uncle is a firefighter.', exKo: '우리 삼촌은 소방관이세요.' },
+      { id: 'w19', unit: 'u4', unitName: 'Unit 4. 직업과 장래희망', en: 'teacher', ko: '선생님', phonetic: '티처', emoji: '👩‍🏫', exEn: 'She is an English teacher.', exKo: '그녀는 영어 선생님이세요.' },
+      { id: 'w20', unit: 'u4', unitName: 'Unit 4. 직업과 장래희망', en: 'doctor', ko: '의사', phonetic: '닥터', emoji: '🩺', exEn: 'The doctor helps sick people.', exKo: '의사 선생님은 아픈 사람들을 도와주셔요.' },
+
+      // Unit 5: 하루 일과와 시각 (Daily Routine)
+      { id: 'w21', unit: 'u5', unitName: 'Unit 5. 하루 일과와 시각', en: 'breakfast', ko: '아침 식사', phonetic: '브렉퍼스트', emoji: '🥞', exEn: 'It is time for breakfast.', exKo: '아침 식사할 시간이에요.' },
+      { id: 'w22', unit: 'u5', unitName: 'Unit 5. 하루 일과와 시각', en: 'homework', ko: '숙제', phonetic: '홈워크', emoji: '📝', exEn: 'I do my homework at five.', exKo: '나는 5시에 숙제를 해요.' },
+      { id: 'w23', unit: 'u5', unitName: 'Unit 5. 하루 일과와 시각', en: 'morning', ko: '아침, 오전', phonetic: '모닝', emoji: '🌅', exEn: 'I exercise every morning.', exKo: '나는 매일 아침 운동을 해요.' },
+      { id: 'w24', unit: 'u5', unitName: 'Unit 5. 하루 일과와 시각', en: 'library', ko: '도서관', phonetic: '라이브러리', emoji: '🏛️', exEn: 'Let us go to the library.', exKo: '우리 도서관에 가자.' },
+      { id: 'w25', unit: 'u5', unitName: 'Unit 5. 하루 일과와 시각', en: 'hospital', ko: '병원', phonetic: '하스피탈', emoji: '🏥', exEn: 'The hospital is near the park.', exKo: '병원은 공원 근처에 있어요.' }
+    ];
+
+    const DEFAULT_GRAMMAR_QUESTIONS = [
+      { id: 'g1', unit: 'u1', category: 'be동사', ko: '나는 오늘 매우 행복해요.', en: 'I ( ___ ) very happy today.', fullEn: 'I am very happy today.', answer: 'am', options: ['am', 'are', 'is', 'be'], exp: '주어가 I(나)일 때 짝꿍이 되는 be동사는 am입니다.' },
+      { id: 'g2', unit: 'u1', category: 'be동사 의문문', ko: '너는 지금 목이 마르니?', en: '( ___ ) you thirsty now?', fullEn: 'Are you thirsty now?', answer: 'Are', options: ['Am', 'Are', 'Is', 'Do'], exp: '주어가 you(너)이고 상태를 물어볼 때는 Are you ~?로 시작합니다.' },
+      { id: 'g3', unit: 'u1', category: 'be동사', ko: '그는 경기 후에 피곤해요.', en: 'He ( ___ ) tired after the game.', fullEn: 'He is tired after the game.', answer: 'is', options: ['am', 'are', 'is', 'does'], exp: '주어가 3인칭 단수(He, She, It)일 때 be동사는 is를 씁니다.' },
+      { id: 'g4', unit: 'u2', category: '현재진행형', ko: '그녀는 지금 책을 읽고 있는 중이에요.', en: 'She is ( ___ ) a book now.', fullEn: 'She is reading a book now.', answer: 'reading', options: ['read', 'reads', 'reading', 'to read'], exp: '지금 하고 있는 일을 말할 때는 be동사(is) + 동사원형-ing(reading) 형태를 씁니다.' },
+      { id: 'g5', unit: 'u2', category: '현재진행형', ko: '그들은 함께 춤을 추고 있어요.', en: 'They ( ___ ) dancing together.', fullEn: 'They are dancing together.', answer: 'are', options: ['am', 'is', 'are', 'do'], exp: '주어가 복수(They: 그들)이므로 be동사 are를 써서 are dancing을 만듭니다.' },
+      { id: 'g6', unit: 'u2', category: '현재진행형 의문문', ko: '너는 무엇을 하고 있는 중이니?', en: 'What are you ( ___ )?', fullEn: 'What are you doing?', answer: 'doing', options: ['do', 'does', 'doing', 'did'], exp: 'Are you 뒤에는 진행형을 만드는 doing(하고 있는)이 옵니다.' },
+      { id: 'g7', unit: 'u3', category: '위치 전치사', ko: '공이 의자 아래에 있어요.', en: 'The ball is ( ___ ) the chair.', fullEn: 'The ball is under the chair.', answer: 'under', options: ['under', 'on', 'in', 'to'], exp: "'~아래에'를 뜻하는 위치 전치사는 under입니다. (on: ~위에, in: ~안에)" },
+      { id: 'g8', unit: 'u3', category: '위치 전치사', ko: '내 안경이 책상 위에 있어요.', en: 'My glasses are ( ___ ) the desk.', fullEn: 'My glasses are on the desk.', answer: 'on', options: ['on', 'under', 'behind', 'for'], exp: "접촉한 표면 '~위에'를 뜻하는 전치사는 on입니다." },
+      { id: 'g9', unit: 'u3', category: '의문사 Where', ko: '내 새 우산이 어디에 있니?', en: '( ___ ) is my new umbrella?', fullEn: 'Where is my new umbrella?', answer: 'Where', options: ['Where', 'What', 'Who', 'When'], exp: "물건이나 사람의 위치('어디에')를 물어볼 때는 의문사 Where를 사용합니다." },
+      { id: 'g10', unit: 'u4', category: '관사 a / an', ko: '그녀는 영어 선생님이세요.', en: 'She is ( ___ ) English teacher.', fullEn: 'She is an English teacher.', answer: 'an', options: ['a', 'an', 'the', 'two'], exp: 'English처럼 모음 소리(a, e, i, o, u)로 시작하는 단수 명사 앞에는 a 대신 an을 씁니다.' },
+      { id: 'g11', unit: 'u4', category: '의문사 Who', ko: '저분은 누구시니? — 우리 삼촌이셔.', en: '( ___ ) is he? — He is my uncle.', fullEn: 'Who is he? He is my uncle.', answer: 'Who', options: ['Who', 'Where', 'What', 'How'], exp: "사람이 '누구'인지 물어볼 때는 의문사 Who를 사용합니다." },
+      { id: 'g12', unit: 'u4', category: '조동사 can', ko: '나는 수영을 아주 잘할 수 있어요.', en: 'I can ( ___ ) very well.', fullEn: 'I can swim very well.', answer: 'swim', options: ['swim', 'swims', 'swimming', 'to swim'], exp: "조동사 can(~할 수 있다) 뒤에는 항상 원래 모양인 '동사원형(swim)'이 옵니다." },
+      { id: 'g13', unit: 'u5', category: '시각과 전치사', ko: '나는 아침 7시에 일어나요.', en: 'I get up ( ___ ) seven o’clock.', fullEn: 'I get up at seven oclock.', answer: 'at', options: ['at', 'in', 'on', 'under'], exp: '구체적인 시각(seven o’clock) 앞에는 전치사 at(~에)을 씁니다.' },
+      { id: 'g14', unit: 'u5', category: 'It is time for ~', ko: '아침 식사할 시간이에요.', en: 'It is time ( ___ ) breakfast.', fullEn: 'It is time for breakfast.', answer: 'for', options: ['for', 'to', 'at', 'in'], exp: '뒤에 명사(breakfast, school, lunch 등)가 올 때는 It is time for + 명사(~할 시간이다)를 씁니다.' },
+      { id: 'g15', unit: 'u5', category: '제안하기 Let’s', ko: '우리 함께 도서관에 가자!', en: 'Let’s ( ___ ) to the library!', fullEn: 'Lets go to the library!', answer: 'go', options: ['go', 'goes', 'going', 'went'], exp: "Let's(~하자) 뒤에는 항상 동사원형(go)을 씁니다." }
+    ];
+
+    const DEFAULT_SENTENCE_PROBLEMS = [
+      { id: 's1', unit: 'u1', unitLabel: 'Unit 1. 감정과 상태', emoji: '😊', ko: '나는 오늘 매우 행복해요.', tokens: ['I', 'am', 'very', 'happy', 'today.'], tip: '주어(I) + be동사(am) + 매우(very) + 상태(happy) 순서로 배열해 보세요.' },
+      { id: 's2', unit: 'u1', unitLabel: 'Unit 1. 감정과 상태', emoji: '🥤', ko: '너는 지금 목이 마르니?', tokens: ['Are', 'you', 'thirsty', 'now?'], tip: '물어보는 문장은 Are you + 상태(thirsty) + 시간(now?) 순서예요.' },
+      { id: 's3', unit: 'u1', unitLabel: 'Unit 1. 감정과 상태', emoji: '🍽️', ko: '그는 점심 전에 배가 고파요.', tokens: ['He', 'is', 'hungry', 'before', 'lunch.'], tip: 'He is hungry(그는 배가 고프다)를 먼저 만들고 before lunch를 붙여요.' },
+      { id: 's4', unit: 'u2', unitLabel: 'Unit 2. 지금 하는 일', emoji: '📖', ko: '그녀는 책을 읽고 있는 중이에요.', tokens: ['She', 'is', 'reading', 'a', 'book.'], tip: '주어(She) + is reading(읽고 있다) + 목적어(a book.) 순서예요.' },
+      { id: 's5', unit: 'u2', unitLabel: 'Unit 2. 지금 하는 일', emoji: '🧹', ko: '나는 지금 내 방을 청소하고 있어요.', tokens: ['I', 'am', 'cleaning', 'my', 'room.'], tip: 'I am cleaning(나는 청소하고 있다) 뒤에 my room(내 방)을 놓아요.' },
+      { id: 's6', unit: 'u2', unitLabel: 'Unit 2. 지금 하는 일', emoji: '🍳', ko: '우리 아빠는 저녁을 요리하고 계세요.', tokens: ['My', 'dad', 'is', 'cooking', 'dinner.'], tip: '주어(My dad) + 동사(is cooking) + 목적어(dinner.) 순서예요.' },
+      { id: 's7', unit: 'u3', unitLabel: 'Unit 3. 물건의 위치', emoji: '⌚', ko: '내 새 손목시계가 어디에 있니?', tokens: ['Where', 'is', 'my', 'new', 'watch?'], tip: '위치를 물을 때는 Where is + 물건(my new watch?) 순서로 써요.' },
+      { id: 's8', unit: 'u3', unitLabel: 'Unit 3. 물건의 위치', emoji: '⚽', ko: '공이 의자 아래에 있어요.', tokens: ['The', 'ball', 'is', 'under', 'the', 'chair.'], tip: '주어(The ball) + is + 전치사(under) + 장소(the chair.) 순서예요.' },
+      { id: 's9', unit: 'u3', unitLabel: 'Unit 3. 물건의 위치', emoji: '👓', ko: '내 안경은 책상 위에 있어요.', tokens: ['My', 'glasses', 'are', 'on', 'the', 'desk.'], tip: '안경(My glasses)은 알이 두 개라 복수형 be동사 are를 써요.' },
+      { id: 's10', unit: 'u4', unitLabel: 'Unit 4. 직업과 장래희망', emoji: '🔬', ko: '나는 과학자가 되고 싶어요.', tokens: ['I', 'want', 'to', 'be', 'a', 'scientist.'], tip: '장래희망을 말할 때는 I want to be a + 직업 표현을 써요.' },
+      { id: 's11', unit: 'u4', unitLabel: 'Unit 4. 직업과 장래희망', emoji: '🚒', ko: '우리 삼촌은 소방관이세요.', tokens: ['My', 'uncle', 'is', 'a', 'firefighter.'], tip: '주어(My uncle) + is + a firefighter 순서예요.' },
+      { id: 's12', unit: 'u4', unitLabel: 'Unit 4. 직업과 장래희망', emoji: '👩‍🏫', ko: '그녀는 영어 선생님이세요.', tokens: ['She', 'is', 'an', 'English', 'teacher.'], tip: 'English 앞에는 모음 앞 관사 an이 와요.' },
+      { id: 's13', unit: 'u5', unitLabel: 'Unit 5. 하루 일과와 시각', emoji: '🥞', ko: '아침 식사할 시간이에요.', tokens: ['It', 'is', 'time', 'for', 'breakfast.'], tip: '~할 시간이다는 It is time for + 명사 순서로 완성해요.' },
+      { id: 's14', unit: 'u5', unitLabel: 'Unit 5. 하루 일과와 시각', emoji: '📝', ko: '나는 다섯 시에 숙제를 해요.', tokens: ['I', 'do', 'my', 'homework', 'at', 'five.'], tip: '숙제를 하다(I do my homework) 뒤에 시각(at five.)을 붙여요.' },
+      { id: 's15', unit: 'u5', unitLabel: 'Unit 5. 하루 일과와 시각', emoji: '🏛️', ko: '우리 함께 도서관에 가자.', tokens: ['Let’s', 'go', 'to', 'the', 'library.'], tip: '제안할 때는 Let’s go to + 장소(the library.) 순서로 써요.' }
+    ];
+
+    const SAMPLE_WEEK2_TEXT = `Week 2. 날씨와 계절 | sunny | 화창한, 맑은 | 써니 | It is sunny and warm today. | 오늘은 화창하고 따뜻해요.
+Week 2. 날씨와 계절 | cloudy | 흐린 | 클라우디 | The sky is very cloudy now. | 지금 하늘이 매우 흐려요.
+Week 2. 날씨와 계절 | windy | 바람이 부는 | 윈디 | It is windy outside today. | 오늘 밖은 바람이 불어요.
+Week 2. 날씨와 계절 | winter | 겨울 | 윈터 | I like white snow in winter. | 나는 겨울의 하얀 눈을 좋아해요.
+Week 3. 동물과 자연 | elephant | 코끼리 | 엘리펀트 | The elephant has a long nose. | 코끼리는 긴 코를 가지고 있어요.
+Week 3. 동물과 자연 | dolphin | 돌고래 | 돌핀 | The dolphin can swim very fast. | 돌고래는 아주 빠르게 수영할 수 있어요.
+Week 3. 동물과 자연 | monkey | 원숭이 | 멍키 | The monkey likes yellow bananas. | 원숭이는 노란 바나나를 좋아해요.
+Week 3. 동물과 자연 | giraffe | 기린 | 지래프 | The giraffe is very tall. | 기린은 키가 매우 커요.
+Week 4. 운동과 취미 | badminton | 배드민턴 | 배드민턴 | Let us play badminton together. | 우리 함께 배드민턴을 치자.
+Week 4. 운동과 취미 | skating | 스케이트 타기 | 스케이팅 | She likes skating on the ice. | 그녀는 얼음 위에서 스케이트 타기를 좋아해요.
+Week 4. 운동과 취미 | piano | 피아노 | 피애노 | I can play the piano well. | 나는 피아노를 잘 칠 수 있어요.
+Week 4. 운동과 자연 | camping | 캠핑, 야영 | 캠핑 | We go camping every summer. | 우리는 매년 여름 캠핑을 가요.`;
+
+    // Mutable active dataset
+    let VOCAB_DATA = [...DEFAULT_VOCAB_DATA];
+    let GRAMMAR_QUESTIONS = [...DEFAULT_GRAMMAR_QUESTIONS];
+    let SENTENCE_PROBLEMS = [...DEFAULT_SENTENCE_PROBLEMS];
+
+    // ==================== 2. APP STATE & PERSISTENCE ====================
+    const state = {
+      currentTab: 'writing',
+      selectedUnit: 'all',
+      packTitle: '기본 1~5단원 (25단어)',
+      githubJsonUrl: '',
+      speechRate: 0.9,
+      soundOn: true,
+      score: 0,
+      writtenWords: {},
+      listeningCorrectCount: 0,
+      listeningStreak: 0,
+      grammarSolved: {},
+      sentenceSolved: {},
+
+      // Tab 1: Writing state
+      writingIndex: 0,
+      penColor: '#1e293b',
+      penSize: 5,
+      showTraceGuide: true,
+      strokeCount: 0,
+      scrambledPool: [],
+      selectedLetters: [],
+
+      // Tab 2: Listening state
+      listenSubMode: 'cards',
+      listenQuizTarget: null,
+      listenQuizAnswered: false,
+
+      // Tab 3: Grammar state
+      grammarIndex: 0,
+
+      // Tab 4: Sentence state
+      sentenceIndex: 0,
+      sentenceTray: [],
+      sentenceBank: [],
+
+      // Tab 5: Vocab Test state
+      testQuestions: [],
+      testIndex: 0,
+      testCorrect: 0,
+      testRecords: [],
+      testAnsweredCurrent: false
+    };
+
+    function loadSavedState() {
+      try {
+        const raw = localStorage.getItem('elem4_english_workbook_v2');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.score === 'number') state.score = parsed.score;
+        if (parsed.writtenWords) state.writtenWords = parsed.writtenWords;
+        if (typeof parsed.listeningCorrectCount === 'number') state.listeningCorrectCount = parsed.listeningCorrectCount;
+        if (parsed.grammarSolved) state.grammarSolved = parsed.grammarSolved;
+        if (parsed.sentenceSolved) state.sentenceSolved = parsed.sentenceSolved;
+        if (parsed.githubJsonUrl) state.githubJsonUrl = parsed.githubJsonUrl;
+        if (parsed.customPack && Array.isArray(parsed.customPack.vocab) && parsed.customPack.vocab.length > 0) {
+          applyQuestionPack(parsed.customPack, false);
+        }
+      } catch (err) {
+        // Ignore storage errors inside restricted iframe
+      }
+    }
+
+    function saveState(customPackToPersist) {
+      try {
+        const existingRaw = localStorage.getItem('elem4_english_workbook_v2');
+        const existing = existingRaw ? JSON.parse(existingRaw) : {};
+        const payload = {
+          score: state.score,
+          writtenWords: state.writtenWords,
+          listeningCorrectCount: state.listeningCorrectCount,
+          grammarSolved: state.grammarSolved,
+          sentenceSolved: state.sentenceSolved,
+          githubJsonUrl: state.githubJsonUrl,
+          customPack: customPackToPersist !== undefined ? customPackToPersist : existing.customPack
+        };
+        localStorage.setItem('elem4_english_workbook_v2', JSON.stringify(payload));
+      } catch (err) {
+        // Ignore storage errors
+      }
+    }
+
+    // ==================== 2B. DYNAMIC PACK ENGINE & GITHUB SYNC ====================
+    function rebuildUnitSelectDropdown() {
+      const selectEl = document.getElementById('unitSelect');
+      const unitMap = new Map();
+      VOCAB_DATA.forEach(item => {
+        if (!unitMap.has(item.unit)) {
+          unitMap.set(item.unit, item.unitName || item.unit);
+        }
+      });
+      selectEl.innerHTML = '';
+      const allOpt = document.createElement('option');
+      allOpt.value = 'all';
+      allOpt.textContent = `전체 단원 (${VOCAB_DATA.length}단어)`;
+      selectEl.appendChild(allOpt);
+
+      unitMap.forEach((label, key) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = label;
+        selectEl.appendChild(opt);
+      });
+      state.selectedUnit = 'all';
+      selectEl.value = 'all';
+    }
+
+    function applyQuestionPack(pack, showNotification = true) {
+      if (!pack || !Array.isArray(pack.vocab) || pack.vocab.length === 0) {
+        showToast('유효한 단어 데이터가 없습니다.');
+        return;
+      }
+      VOCAB_DATA = pack.vocab;
+      GRAMMAR_QUESTIONS = Array.isArray(pack.grammar) && pack.grammar.length > 0 ? pack.grammar : buildAutoGrammarFromVocab(pack.vocab);
+      SENTENCE_PROBLEMS = Array.isArray(pack.sentences) && pack.sentences.length > 0 ? pack.sentences : buildAutoSentencesFromVocab(pack.vocab);
+      state.packTitle = pack.title || `주간 문제집 (${VOCAB_DATA.length}단어)`;
+
+      document.getElementById('currentPackTitleBadge').textContent = state.packTitle;
+      document.getElementById('syncStatusBadge').textContent = `적용됨: ${state.packTitle}`;
+
+      state.writingIndex = 0;
+      state.grammarIndex = 0;
+      state.sentenceIndex = 0;
+      rebuildUnitSelectDropdown();
+      updateHeaderStats();
+      renderWritingSection();
+      renderListeningCards();
+      renderGrammarSection();
+      initSentenceProblem();
+      startVocabTest();
+      saveState(pack);
+
+      if (showNotification) {
+        showToast(`"${state.packTitle}" (${VOCAB_DATA.length}단어) 문제집이 성공적으로 적용되었습니다!`);
+      }
+    }
+
+    function buildAutoGrammarFromVocab(vocabList) {
+      return vocabList.map((w, idx) => {
+        const regex = new RegExp(`\\b${w.en}\\b`, 'i');
+        const blanked = regex.test(w.exEn)
+          ? w.exEn.replace(regex, '( ___ )')
+          : `${w.exEn} -> (${w.ko}: ___ )`;
+
+        const others = vocabList.filter(o => o.id !== w.id).map(o => o.en);
+        const fallbackDistractors = ['happy', 'under', 'reading', 'pilot', 'morning'];
+        const pool = [...others, ...fallbackDistractors].filter(x => x.toLowerCase() !== w.en.toLowerCase());
+        const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 3);
+        const options = [w.en, ...shuffled].sort(() => Math.random() - 0.5);
+
+        return {
+          id: `ag_${idx + 1}`,
+          unit: w.unit,
+          category: '주간 핵심 어휘·문맥',
+          ko: w.exKo,
+          en: blanked,
+          fullEn: w.exEn,
+          answer: w.en,
+          options,
+          exp: `'${w.ko}'을(를) 뜻하는 알맞은 영어 단어는 ${w.en} [발음: ${w.phonetic}]입니다.`
+        };
+      });
+    }
+
+    function buildAutoSentencesFromVocab(vocabList) {
+      return vocabList.map((w, idx) => {
+        const rawTokens = w.exEn.trim().split(/\s+/).filter(Boolean);
+        const tokens = rawTokens.length >= 3 ? rawTokens : ['This', 'is', w.en + '.'];
+        return {
+          id: `as_${idx + 1}`,
+          unit: w.unit,
+          unitLabel: w.unitName,
+          emoji: w.emoji || '📘',
+          ko: w.exKo,
+          tokens,
+          tip: `핵심 단어 "${w.en}"(${w.ko})가 들어간 문장이에요. 주어와 동사 순서를 생각하며 배열해 보세요.`
+        };
+      });
+    }
+
+    function parseQuickBuilderText(rawText, packTitle) {
+      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+      const vocab = [];
+      const unitKeyMap = new Map();
+      const emojis = ['🌟', '🍎', '🚀', '🎨', '🐶', '🌈', '⚽', '🎵', '📚', '🧩', '🌻', '🏆'];
+
+      lines.forEach((line, idx) => {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length < 3) return;
+        const unitName = parts[0] || 'Week 1';
+        const en = parts[1];
+        const ko = parts[2];
+        const phonetic = parts[3] || en;
+        const exEn = parts[4] || `I know the word ${en}.`;
+        const exKo = parts[5] || `${ko} 단어를 문장으로 연습해요.`;
+
+        if (!unitKeyMap.has(unitName)) {
+          unitKeyMap.set(unitName, `u_${unitKeyMap.size + 1}`);
+        }
+        const unitKey = unitKeyMap.get(unitName);
+
+        vocab.push({
+          id: `cw_${idx + 1}`,
+          unit: unitKey,
+          unitName,
+          en,
+          ko,
+          phonetic,
+          emoji: emojis[idx % emojis.length],
+          exEn,
+          exKo
+        });
+      });
+
+      if (vocab.length === 0) return null;
+      return {
+        title: packTitle || '주간 커스텀 문제집',
+        updatedAt: new Date().toISOString().slice(0, 10),
+        vocab,
+        grammar: buildAutoGrammarFromVocab(vocab),
+        sentences: buildAutoSentencesFromVocab(vocab)
+      };
+    }
+
+    async function fetchQuestionsFromGithub(url, silent = false) {
+      const targetUrl = (url || './questions.json').trim();
+      try {
+        const sep = targetUrl.includes('?') ? '&' : '?';
+        const res = await fetch(`${targetUrl}${sep}t=${Date.now()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && Array.isArray(data.vocab) && data.vocab.length > 0) {
+          state.githubJsonUrl = targetUrl;
+          document.getElementById('githubJsonUrlInput').value = targetUrl;
+          applyQuestionPack(data, !silent);
+          return true;
+        }
+        throw new Error('JSON 형식에 vocab 배열이 없습니다.');
+      } catch (err) {
+        if (!silent) {
+          showToast('GitHub JSON을 불러오지 못했습니다. 주소나 파일 업로드 여부를 확인해 주세요.');
+        }
+        return false;
+      }
+    }
+
+    // ==================== 3. AUDIO (WEB SPEECH TTS & WEB AUDIO EFFECTS) ====================
+    let audioCtx = null;
+
+    function playTone(type) {
+      if (!state.soundOn) return;
+      try {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) audioCtx = new AudioContextClass();
+        }
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'correct') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now); // C5
+          osc.frequency.setValueAtTime(659.25, now + 0.09); // E5
+          osc.frequency.setValueAtTime(783.99, now + 0.18); // G5
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+          osc.start(now);
+          osc.stop(now + 0.42);
+        } else if (type === 'wrong') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.setValueAtTime(175, now + 0.12);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'pop') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(600, now);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        }
+      } catch (e) {
+        // Ignore audio errors
+      }
+    }
+
+    function speakEnglish(text) {
+      if (!('speechSynthesis' in window)) {
+        showToast('이 브라우저에서는 음성 합성을 지원하지 않습니다.');
+        return;
+      }
+      try {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'en-US';
+        utter.rate = state.speechRate;
+        utter.pitch = 1.05;
+        const voices = window.speechSynthesis.getVoices();
+        const enVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en-us')) ||
+                        voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+        if (enVoice) utter.voice = enVoice;
+        window.speechSynthesis.speak(utter);
+      } catch (e) {
+        // Fallback silent
+      }
+    }
+
+    function showToast(msg) {
+      const banner = document.getElementById('toastBanner');
+      banner.textContent = msg;
+      banner.classList.remove('hidden');
+      clearTimeout(banner._timer);
+      banner._timer = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 2600);
+    }
+
+    // ==================== 4. FILTERED LIST HELPERS ====================
+    function getFilteredVocab() {
+      if (state.selectedUnit === 'all') return VOCAB_DATA;
+      return VOCAB_DATA.filter(item => item.unit === state.selectedUnit);
+    }
+
+    function getFilteredGrammar() {
+      if (state.selectedUnit === 'all') return GRAMMAR_QUESTIONS;
+      return GRAMMAR_QUESTIONS.filter(item => item.unit === state.selectedUnit);
+    }
+
+    function getFilteredSentences() {
+      if (state.selectedUnit === 'all') return SENTENCE_PROBLEMS;
+      return SENTENCE_PROBLEMS.filter(item => item.unit === state.selectedUnit);
+    }
+
+    function updateHeaderStats() {
+      document.getElementById('totalScoreBadge').textContent = `${state.score}점`;
+      const writtenCount = Object.keys(state.writtenWords).length;
+      document.getElementById('statWritten').textContent = `${writtenCount} / ${VOCAB_DATA.length}`;
+      document.getElementById('statListening').textContent = `${state.listeningCorrectCount}문제`;
+      const grammarCount = Object.keys(state.grammarSolved).length;
+      document.getElementById('statGrammar').textContent = `${grammarCount} / ${GRAMMAR_QUESTIONS.length}`;
+      const sentenceCount = Object.keys(state.sentenceSolved).length;
+      document.getElementById('statSentence').textContent = `${sentenceCount} / ${SENTENCE_PROBLEMS.length}`;
+      saveState();
+    }
+
+    // ==================== 5. TAB 1: WRITING (S-PEN CANVAS & SCRAMBLE) ====================
+    let canvas, ctx;
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function initSpenCanvas() {
+      canvas = document.getElementById('spenCanvas');
+      ctx = canvas.getContext('2d');
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          pressure: e.pressure && e.pressure > 0 ? e.pressure : 0.6
+        };
+      }
+
+      canvas.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (canvas.setPointerCapture) {
+          try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+        }
+        isDrawing = true;
+        const pos = getPos(e);
+        lastX = pos.x;
+        lastY = pos.y;
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = state.penColor;
+        const dynamicWidth = e.pointerType === 'pen' ? Math.max(2, state.penSize * (0.5 + pos.pressure)) : state.penSize;
+        ctx.lineWidth = dynamicWidth;
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+      });
+
+      function endStroke(e) {
+        if (!isDrawing) return;
+        isDrawing = false;
+        state.strokeCount += 1;
+        document.getElementById('strokeCountLabel').textContent = `필기 획수: ${state.strokeCount}획`;
+      }
+
+      canvas.addEventListener('pointerup', endStroke);
+      canvas.addEventListener('pointercancel', endStroke);
+    }
+
+    function clearSpenCanvas() {
+      if (!canvas || !ctx) return;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+      state.strokeCount = 0;
+      document.getElementById('strokeCountLabel').textContent = '필기 획수: 0획';
+    }
+
+    function buildScrambleForWord(wordStr) {
+      const chars = wordStr.split('').map((ch, idx) => ({ id: `${idx}_${ch}`, ch, used: false }));
+      // Fisher-Yates shuffle
+      for (let i = chars.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = chars[i];
+        chars[i] = chars[j];
+        chars[j] = temp;
+      }
+      // Avoid identical order for words longer than 2 chars
+      if (chars.map(c => c.ch).join('') === wordStr && chars.length > 1) {
+        const first = chars.shift();
+        chars.push(first);
+      }
+      state.scrambledPool = chars;
+      state.selectedLetters = [];
+      renderScrambleUI(wordStr);
+    }
+
+    function renderScrambleUI(targetWord) {
+      const slotsEl = document.getElementById('spellingSlots');
+      const poolEl = document.getElementById('scrambleLetters');
+      slotsEl.innerHTML = '';
+      poolEl.innerHTML = '';
+
+      for (let i = 0; i < targetWord.length; i++) {
+        const chosen = state.selectedLetters[i];
+        const slotBtn = document.createElement('button');
+        slotBtn.type = 'button';
+        if (chosen) {
+          slotBtn.className = 'w-10 h-11 sm:w-11 sm:h-12 rounded-xl bg-indigo-600 text-white font-black text-lg shadow-sm flex items-center justify-center';
+          slotBtn.textContent = chosen.ch;
+          slotBtn.addEventListener('click', () => {
+            chosen.used = false;
+            state.selectedLetters.splice(i, 1);
+            playTone('pop');
+            renderScrambleUI(targetWord);
+          });
+        } else {
+          slotBtn.className = 'w-10 h-11 sm:w-11 sm:h-12 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 text-slate-400 font-bold text-lg flex items-center justify-center';
+          slotBtn.textContent = '_';
+        }
+        slotsEl.appendChild(slotBtn);
+      }
+
+      state.scrambledPool.forEach((item) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.disabled = item.used;
+        btn.className = item.used
+          ? 'w-10 h-11 sm:w-11 sm:h-12 rounded-xl bg-slate-200 text-slate-400 font-black text-lg cursor-not-allowed'
+          : 'tap-btn w-10 h-11 sm:w-11 sm:h-12 rounded-xl bg-white hover:bg-indigo-50 border-2 border-indigo-200 text-indigo-900 font-black text-lg shadow-sm';
+        btn.textContent = item.ch;
+        btn.addEventListener('click', () => {
+          if (item.used) return;
+          item.used = true;
+          state.selectedLetters.push(item);
+          playTone('pop');
+          renderScrambleUI(targetWord);
+          if (state.selectedLetters.length === targetWord.length) {
+            const attempt = state.selectedLetters.map(x => x.ch).join('');
+            if (attempt === targetWord) {
+              playTone('correct');
+              speakEnglish(targetWord);
+              if (!state.writtenWords[getCurrentWriteWord().id]) {
+                state.writtenWords[getCurrentWriteWord().id] = true;
+                state.score += 10;
+                updateHeaderStats();
+                renderWritingWordList();
+              }
+              showToast(`정답입니다! "${targetWord}" 철자를 완벽히 완성했어요! (+10점)`);
+            } else {
+              playTone('wrong');
+              showToast('철자 순서가 달라요. 글자 칸을 터치해 다시 고쳐 보세요!');
+            }
+          }
+        });
+        poolEl.appendChild(btn);
+      });
+    }
+
+    function getCurrentWriteWord() {
+      const list = getFilteredVocab();
+      if (state.writingIndex >= list.length) state.writingIndex = 0;
+      return list[state.writingIndex] || VOCAB_DATA[0];
+    }
+
+    function renderWritingWordList() {
+      const list = getFilteredVocab();
+      document.getElementById('wordListCount').textContent = `${list.length}개`;
+      const container = document.getElementById('writingWordList');
+      container.innerHTML = '';
+
+      list.forEach((item, idx) => {
+        const isCurrent = idx === state.writingIndex;
+        const isDone = !!state.writtenWords[item.id];
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `w-full text-left px-3.5 py-2.5 rounded-xl border transition flex items-center justify-between gap-2 ${
+          isCurrent
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+            : 'bg-slate-50 hover:bg-indigo-50/60 text-slate-800 border-slate-200'
+        }`;
+        btn.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="text-xl">${item.emoji}</span>
+            <div class="truncate">
+              <div class="font-extrabold text-sm leading-tight">${item.en}</div>
+              <div class="text-xs ${isCurrent ? 'text-indigo-100' : 'text-slate-500'} truncate">${item.ko}</div>
+            </div>
+          </div>
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full ${
+            isDone
+              ? (isCurrent ? 'bg-emerald-300 text-emerald-950' : 'bg-emerald-100 text-emerald-700')
+              : (isCurrent ? 'bg-indigo-500 text-indigo-100' : 'bg-slate-200 text-slate-600')
+          }">${isDone ? '완료 ✓' : '연습'}</span>
+        `;
+        btn.addEventListener('click', () => {
+          state.writingIndex = idx;
+          renderWritingSection();
+          speakEnglish(item.en);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function renderWritingSection() {
+      renderWritingWordList();
+      const word = getCurrentWriteWord();
+      document.getElementById('writeWordEmoji').textContent = word.emoji;
+      document.getElementById('writeWordUnitBadge').textContent = word.unitName;
+      document.getElementById('writeWordPhonetic').textContent = `[발음: ${word.phonetic}]`;
+      document.getElementById('writeWordEn').textContent = word.en;
+      document.getElementById('writeWordKo').textContent = word.ko;
+      document.getElementById('writeWordExample').textContent = `예문: ${word.exEn} (${word.exKo})`;
+      document.getElementById('canvasTraceWord').textContent = word.en;
+      clearSpenCanvas();
+      buildScrambleForWord(word.en);
+    }
+
+    // ==================== 6. TAB 2: LISTENING (CARDS & QUIZ) ====================
+    function renderListeningCards() {
+      const list = getFilteredVocab();
+      const container = document.getElementById('listenCardsContainer');
+      container.innerHTML = '';
+
+      list.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl p-4 shadow-sm border border-slate-200 hover:border-indigo-300 transition flex flex-col justify-between gap-3';
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-2xl">${item.emoji}</div>
+              <div>
+                <span class="text-[11px] font-bold text-indigo-600">${item.unitName}</span>
+                <h3 class="text-xl font-black text-slate-900">${item.en}</h3>
+                <p class="text-sm font-bold text-slate-600">${item.ko} <span class="text-xs font-normal text-slate-400">[${item.phonetic}]</span></p>
+              </div>
+            </div>
+            <button type="button" class="listen-word-btn tap-btn w-11 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center text-lg shadow-sm" title="단어 발음 듣기">
+              🔊
+            </button>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 flex items-center justify-between gap-2">
+            <div class="text-xs text-slate-700 leading-snug">
+              <div class="font-bold text-slate-900">${item.exEn}</div>
+              <div class="text-slate-500 mt-0.5">${item.exKo}</div>
+            </div>
+            <button type="button" class="listen-ex-btn tap-btn shrink-0 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:border-indigo-300 text-xs font-bold text-indigo-700">
+              🗣️ 예문
+            </button>
+          </div>
+        `;
+        card.querySelector('.listen-word-btn').addEventListener('click', () => speakEnglish(item.en));
+        card.querySelector('.listen-ex-btn').addEventListener('click', () => speakEnglish(item.exEn));
+        container.appendChild(card);
+      });
+    }
+
+    function generateListeningQuizQuestion() {
+      const pool = getFilteredVocab();
+      const target = pool[Math.floor(Math.random() * pool.length)] || VOCAB_DATA[0];
+      state.listenQuizTarget = target;
+      state.listenQuizAnswered = false;
+
+      document.getElementById('listenQuizUnitLabel').textContent = `${target.unitName} · 리스닝 퀴즈`;
+      document.getElementById('listenQuizStreak').textContent = `연속 정답: ${state.listeningStreak}회 🔥`;
+
+      const feedbackEl = document.getElementById('listenQuizFeedback');
+      feedbackEl.classList.add('hidden');
+
+      // Pick 3 distractors from full VOCAB_DATA
+      const distractors = VOCAB_DATA.filter(w => w.id !== target.id);
+      for (let i = distractors.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = distractors[i];
+        distractors[i] = distractors[j];
+        distractors[j] = t;
+      }
+      const choices = [target, ...distractors.slice(0, 3)];
+      for (let i = choices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = choices[i];
+        choices[i] = choices[j];
+        choices[j] = t;
+      }
+
+      const optionsEl = document.getElementById('listenQuizOptions');
+      optionsEl.innerHTML = '';
+
+      choices.forEach((choice) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tap-btn p-4 rounded-2xl border-2 border-slate-200 hover:border-indigo-400 bg-slate-50 hover:bg-indigo-50/40 text-left flex items-center gap-3 transition';
+        btn.innerHTML = `
+          <span class="text-3xl">${choice.emoji}</span>
+          <div>
+            <div class="text-lg font-black text-slate-900">${choice.en}</div>
+            <div class="text-xs font-bold text-slate-600">${choice.ko}</div>
+          </div>
+        `;
+        btn.addEventListener('click', () => {
+          if (state.listenQuizAnswered) {
+            speakEnglish(choice.en);
+            return;
+          }
+          state.listenQuizAnswered = true;
+          if (choice.id === target.id) {
+            playTone('correct');
+            btn.className = 'p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50 text-left flex items-center gap-3';
+            state.listeningCorrectCount += 1;
+            state.listeningStreak += 1;
+            state.score += 10;
+            updateHeaderStats();
+            document.getElementById('listenQuizStreak').textContent = `연속 정답: ${state.listeningStreak}회 🔥`;
+            feedbackEl.className = 'w-full p-4 rounded-xl text-sm font-bold bg-emerald-100 text-emerald-900 border border-emerald-300';
+            feedbackEl.textContent = `정답입니다! 🔊 "${target.en}" (${target.ko}) — ${target.exEn}`;
+            feedbackEl.classList.remove('hidden');
+          } else {
+            playTone('wrong');
+            state.listeningStreak = 0;
+            btn.className = 'p-4 rounded-2xl border-2 border-rose-400 bg-rose-50 text-left flex items-center gap-3';
+            document.getElementById('listenQuizStreak').textContent = `연속 정답: 0회 🔥`;
+            feedbackEl.className = 'w-full p-4 rounded-xl text-sm font-bold bg-rose-100 text-rose-900 border border-rose-300';
+            feedbackEl.textContent = `아쉬워요! 들려준 단어는 "${target.en}" (${target.ko})입니다. 다시 들어보세요!`;
+            feedbackEl.classList.remove('hidden');
+          }
+          speakEnglish(target.en);
+        });
+        optionsEl.appendChild(btn);
+      });
+
+      speakEnglish(target.en);
+    }
+
+    // ==================== 7. TAB 3: GRAMMAR SECTION ====================
+    function renderGrammarSection() {
+      const list = getFilteredGrammar();
+      if (state.grammarIndex >= list.length) state.grammarIndex = 0;
+      const item = list[state.grammarIndex] || GRAMMAR_QUESTIONS[0];
+
+      document.getElementById('grammarCategoryBadge').textContent = item.category;
+      document.getElementById('grammarQuestionCounter').textContent = `문제 ${state.grammarIndex + 1} / ${list.length}`;
+      document.getElementById('grammarKoPrompt').textContent = `우리말 뜻: ${item.ko}`;
+      document.getElementById('grammarEnPrompt').textContent = item.en;
+
+      const feedbackBox = document.getElementById('grammarFeedbackBox');
+      feedbackBox.classList.add('hidden');
+
+      const optionsGrid = document.getElementById('grammarOptionsGrid');
+      optionsGrid.innerHTML = '';
+
+      item.options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tap-btn p-4 rounded-2xl border-2 border-slate-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/40 font-black text-lg text-slate-800 flex items-center justify-between';
+        btn.innerHTML = `
+          <span class="flex items-center gap-2.5">
+            <span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 text-xs font-extrabold flex items-center justify-center">${idx + 1}</span>
+            <span>${opt}</span>
+          </span>
+          <span class="text-xs font-bold text-slate-400">선택</span>
+        `;
+        btn.addEventListener('click', () => {
+          const isCorrect = opt === item.answer;
+          if (isCorrect) {
+            playTone('correct');
+            btn.className = 'p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50 font-black text-lg text-emerald-950 flex items-center justify-between';
+            document.getElementById('grammarEnPrompt').textContent = item.en.replace('___', item.answer);
+            if (!state.grammarSolved[item.id]) {
+              state.grammarSolved[item.id] = true;
+              state.score += 15;
+              updateHeaderStats();
+            }
+            feedbackBox.className = 'p-4 rounded-2xl border border-emerald-300 bg-emerald-50 text-emerald-950 text-sm space-y-1';
+            feedbackBox.innerHTML = `
+              <div class="font-extrabold">⭕ 정답입니다! (${item.answer})</div>
+              <div class="text-xs sm:text-sm">${item.exp}</div>
+            `;
+            feedbackBox.classList.remove('hidden');
+            speakEnglish(item.fullEn);
+            renderGrammarDots(list);
+          } else {
+            playTone('wrong');
+            btn.className = 'p-4 rounded-2xl border-2 border-rose-400 bg-rose-50 font-black text-lg text-rose-950 flex items-center justify-between';
+            feedbackBox.className = 'p-4 rounded-2xl border border-rose-300 bg-rose-50 text-rose-950 text-sm space-y-1';
+            feedbackBox.innerHTML = `
+              <div class="font-extrabold">❌ 다시 생각해 볼까요?</div>
+              <div class="text-xs sm:text-sm">힌트: ${item.exp}</div>
+            `;
+            feedbackBox.classList.remove('hidden');
+          }
+        });
+        optionsGrid.appendChild(btn);
+      });
+
+      renderGrammarDots(list);
+    }
+
+    function renderGrammarDots(list) {
+      const dotsEl = document.getElementById('grammarDots');
+      dotsEl.innerHTML = '';
+      list.forEach((q, idx) => {
+        const dot = document.createElement('button');
+        dot.type = 'button';
+        const solved = !!state.grammarSolved[q.id];
+        const active = idx === state.grammarIndex;
+        dot.className = `w-7 h-7 rounded-lg text-xs font-extrabold transition ${
+          active
+            ? 'bg-indigo-600 text-white ring-2 ring-indigo-300'
+            : solved
+              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`;
+        dot.textContent = idx + 1;
+        dot.addEventListener('click', () => {
+          state.grammarIndex = idx;
+          renderGrammarSection();
+        });
+        dotsEl.appendChild(dot);
+      });
+    }
+
+    // ==================== 8. TAB 4: SENTENCE BUILDER SECTION ====================
+    function initSentenceProblem() {
+      const list = getFilteredSentences();
+      if (state.sentenceIndex >= list.length) state.sentenceIndex = 0;
+      const item = list[state.sentenceIndex] || SENTENCE_PROBLEMS[0];
+
+      document.getElementById('sentenceUnitBadge').textContent = item.unitLabel;
+      document.getElementById('sentenceProgressText').textContent = `문장 ${state.sentenceIndex + 1} / ${list.length}`;
+      document.getElementById('sentenceEmoji').textContent = item.emoji;
+      document.getElementById('sentenceKoText').textContent = item.ko;
+      document.getElementById('sentenceGrammarTip').textContent = `💡 힌트: ${item.tip}`;
+
+      const feedbackEl = document.getElementById('sentenceFeedback');
+      feedbackEl.classList.add('hidden');
+
+      const bank = item.tokens.map((t, i) => ({ id: `${i}_${t}`, text: t, used: false }));
+      for (let i = bank.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = bank[i];
+        bank[i] = bank[j];
+        bank[j] = tmp;
+      }
+      if (bank.map(b => b.text).join(' ') === item.tokens.join(' ') && bank.length > 1) {
+        bank.push(bank.shift());
+      }
+
+      state.sentenceBank = bank;
+      state.sentenceTray = [];
+      renderSentenceBuilderUI();
+    }
+
+    function renderSentenceBuilderUI() {
+      const trayEl = document.getElementById('sentenceAnswerTray');
+      const bankEl = document.getElementById('sentenceWordBank');
+      trayEl.innerHTML = '';
+      bankEl.innerHTML = '';
+
+      if (state.sentenceTray.length === 0) {
+        const placeholder = document.createElement('span');
+        placeholder.className = 'text-xs sm:text-sm text-slate-400 font-medium px-2';
+        placeholder.textContent = '아래 단어 상자에서 단어를 순서대로 터치해 문장을 만들어 보세요.';
+        trayEl.appendChild(placeholder);
+      } else {
+        state.sentenceTray.forEach((tokenObj, idx) => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'tap-btn px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-extrabold text-base shadow-sm';
+          chip.textContent = tokenObj.text;
+          chip.addEventListener('click', () => {
+            tokenObj.used = false;
+            state.sentenceTray.splice(idx, 1);
+            playTone('pop');
+            renderSentenceBuilderUI();
+          });
+          trayEl.appendChild(chip);
+        });
+      }
+
+      state.sentenceBank.forEach((tokenObj) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.disabled = tokenObj.used;
+        btn.className = tokenObj.used
+          ? 'px-4 py-2.5 rounded-xl bg-slate-100 text-slate-300 font-extrabold text-base cursor-not-allowed'
+          : 'tap-btn px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 text-slate-900 font-extrabold text-base shadow-sm';
+        btn.textContent = tokenObj.text;
+        btn.addEventListener('click', () => {
+          if (tokenObj.used) return;
+          tokenObj.used = true;
+          state.sentenceTray.push(tokenObj);
+          playTone('pop');
+          renderSentenceBuilderUI();
+        });
+        bankEl.appendChild(btn);
+      });
+    }
+
+    function checkCurrentSentence() {
+      const list = getFilteredSentences();
+      const item = list[state.sentenceIndex] || SENTENCE_PROBLEMS[0];
+      const userSentence = state.sentenceTray.map(t => t.text).join(' ');
+      const targetSentence = item.tokens.join(' ');
+      const feedbackEl = document.getElementById('sentenceFeedback');
+
+      if (userSentence === targetSentence) {
+        playTone('correct');
+        speakEnglish(targetSentence);
+        if (!state.sentenceSolved[item.id]) {
+          state.sentenceSolved[item.id] = true;
+          state.score += 15;
+          updateHeaderStats();
+        }
+        feedbackEl.className = 'p-4 rounded-xl text-sm font-bold bg-emerald-100 text-emerald-900 border border-emerald-300';
+        feedbackEl.textContent = `🎉 정답입니다! "${targetSentence}" 문장을 완벽하게 완성했어요! (+15점)`;
+        feedbackEl.classList.remove('hidden');
+      } else {
+        playTone('wrong');
+        feedbackEl.className = 'p-4 rounded-xl text-sm font-bold bg-rose-100 text-rose-900 border border-rose-300';
+        feedbackEl.textContent = `아직 단어 순서가 맞지 않아요. 다시 한번 어순을 확인해 볼까요? (목표 단어 수: ${item.tokens.length}개)`;
+        feedbackEl.classList.remove('hidden');
+      }
+    }
+
+    // ==================== 9. TAB 5: VOCABULARY TEST SECTION ====================
+    function startVocabTest() {
+      const pool = [...getFilteredVocab()];
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = pool[i];
+        pool[i] = pool[j];
+        pool[j] = t;
+      }
+      // If selected unit has fewer than 10 words, supplement from full pool up to 10 questions
+      if (pool.length < 10) {
+        const extra = VOCAB_DATA.filter(w => !pool.some(p => p.id === w.id));
+        for (let i = extra.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const t = extra[i];
+          extra[i] = extra[j];
+          extra[j] = t;
+        }
+        pool.push(...extra.slice(0, 10 - pool.length));
+      }
+
+      const mode = document.getElementById('testTypeSelect').value;
+      state.testQuestions = pool.slice(0, 10).map((word, idx) => {
+        let qType = mode;
+        if (mode === 'mixed') {
+          qType = idx % 2 === 0 ? 'choice' : 'spelling';
+        }
+        return { word, qType };
+      });
+
+      state.testIndex = 0;
+      state.testCorrect = 0;
+      state.testRecords = [];
+      document.getElementById('testResultPanel').classList.add('hidden');
+      document.getElementById('testActivePanel').classList.remove('hidden');
+      renderTestQuestion();
+    }
+
+    function renderTestQuestion() {
+      const current = state.testQuestions[state.testIndex];
+      if (!current) return;
+      state.testAnsweredCurrent = false;
+
+      document.getElementById('testQuestionNumber').textContent = `문항 ${state.testIndex + 1} / ${state.testQuestions.length}`;
+      document.getElementById('testCurrentScore').textContent = `현재 맞힌 개수: ${state.testCorrect}개`;
+      document.getElementById('testPromptEmoji').textContent = current.word.emoji;
+      document.getElementById('testPromptMeaning').textContent = current.word.ko;
+
+      const choiceBox = document.getElementById('testChoiceBox');
+      const spellingBox = document.getElementById('testSpellingBox');
+      const feedbackEl = document.getElementById('testItemFeedback');
+      const nextBtn = document.getElementById('nextTestQuestionBtn');
+
+      feedbackEl.classList.add('hidden');
+      nextBtn.classList.add('hidden');
+
+      if (current.qType === 'choice') {
+        document.getElementById('testPromptTypeBadge').textContent = '객관식: 우리말 뜻과 발음에 알맞은 영어 단어를 고르세요.';
+        choiceBox.classList.remove('hidden');
+        choiceBox.classList.add('grid');
+        spellingBox.classList.add('hidden');
+
+        const others = VOCAB_DATA.filter(w => w.id !== current.word.id);
+        for (let i = others.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const t = others[i];
+          others[i] = others[j];
+          others[j] = t;
+        }
+        const options = [current.word, ...others.slice(0, 3)];
+        for (let i = options.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const t = options[i];
+          options[i] = options[j];
+          options[j] = t;
+        }
+
+        choiceBox.innerHTML = '';
+        options.forEach((opt, idx) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'tap-btn p-4 rounded-2xl border-2 border-slate-200 hover:border-indigo-400 bg-white font-black text-lg text-slate-800 flex items-center gap-3';
+          btn.innerHTML = `
+            <span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 text-xs font-extrabold flex items-center justify-center">${idx + 1}</span>
+            <span>${opt.en}</span>
+          `;
+          btn.addEventListener('click', () => {
+            if (state.testAnsweredCurrent) return;
+            handleTestAnswer(opt.en === current.word.en, opt.en);
+          });
+          choiceBox.appendChild(btn);
+        });
+      } else {
+        document.getElementById('testPromptTypeBadge').textContent = '주관식: 발음을 듣고 알맞은 영어 철자(스펠링)를 입력하세요.';
+        choiceBox.classList.add('hidden');
+        choiceBox.classList.remove('grid');
+        spellingBox.classList.remove('hidden');
+        spellingBox.classList.add('flex');
+
+        const inputEl = document.getElementById('testSpellingInput');
+        inputEl.value = '';
+        inputEl.disabled = false;
+        document.getElementById('testSpellingHint').textContent = `힌트: 첫 글자는 "${current.word.en[0]}" 로 시작하는 ${current.word.en.length}글자 단어예요. [발음: ${current.word.phonetic}]`;
+        setTimeout(() => inputEl.focus(), 50);
+      }
+    }
+
+    function handleTestAnswer(isCorrect, userAnswer) {
+      state.testAnsweredCurrent = true;
+      const current = state.testQuestions[state.testIndex];
+      const feedbackEl = document.getElementById('testItemFeedback');
+      const nextBtn = document.getElementById('nextTestQuestionBtn');
+
+      state.testRecords.push({
+        word: current.word,
+        isCorrect,
+        userAnswer
+      });
+
+      if (isCorrect) {
+        playTone('correct');
+        state.testCorrect += 1;
+        state.score += 10;
+        updateHeaderStats();
+        feedbackEl.className = 'p-3.5 rounded-xl text-sm font-bold text-center bg-emerald-100 text-emerald-900 border border-emerald-300';
+        feedbackEl.textContent = `⭕ 정답입니다! "${current.word.en}" (${current.word.ko})`;
+      } else {
+        playTone('wrong');
+        feedbackEl.className = 'p-3.5 rounded-xl text-sm font-bold text-center bg-rose-100 text-rose-900 border border-rose-300';
+        feedbackEl.textContent = `❌ 아쉽네요! 내가 쓴 답: "${userAnswer || '(빈칸)'}" → 정답: "${current.word.en}" (${current.word.ko})`;
+      }
+
+      speakEnglish(current.word.en);
+      feedbackEl.classList.remove('hidden');
+      document.getElementById('testCurrentScore').textContent = `현재 맞힌 개수: ${state.testCorrect}개`;
+
+      nextBtn.textContent = state.testIndex + 1 < state.testQuestions.length ? '다음 문제 ▶' : '시험 결과 보기 🏆';
+      nextBtn.classList.remove('hidden');
+    }
+
+    function showVocabTestResults() {
+      document.getElementById('testActivePanel').classList.add('hidden');
+      const resultPanel = document.getElementById('testResultPanel');
+      resultPanel.classList.remove('hidden');
+      resultPanel.classList.add('flex');
+
+      const total = state.testQuestions.length;
+      const score100 = Math.round((state.testCorrect / total) * 100);
+      document.getElementById('testResultScoreText').textContent = `${score100}점 (${state.testCorrect} / ${total} 정답)`;
+
+      if (score100 === 100) {
+        document.getElementById('testResultMedal').textContent = '👑';
+        document.getElementById('testResultTitle').textContent = '축하합니다! 100점 만점이에요!';
+      } else if (score100 >= 80) {
+        document.getElementById('testResultMedal').textContent = '🥇';
+        document.getElementById('testResultTitle').textContent = '아주 훌륭해요! 조금만 더 하면 만점!';
+      } else {
+        document.getElementById('testResultMedal').textContent = '🌱';
+        document.getElementById('testResultTitle').textContent = '오답 노트를 복습하고 다시 도전해 보세요!';
+      }
+
+      const reviewList = document.getElementById('testReviewList');
+      reviewList.innerHTML = '';
+
+      state.testRecords.forEach((rec, i) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = `tap-btn p-3.5 rounded-xl border text-left flex items-center justify-between gap-2 ${
+          rec.isCorrect ? 'bg-emerald-50/70 border-emerald-200' : 'bg-rose-50 border-rose-300'
+        }`;
+        row.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl">${rec.word.emoji}</span>
+            <div>
+              <div class="text-sm font-black text-slate-900">${i + 1}. ${rec.word.en} <span class="text-xs font-bold text-slate-600">(${rec.word.ko})</span></div>
+              <div class="text-xs ${rec.isCorrect ? 'text-emerald-700' : 'text-rose-700'} font-semibold">
+                ${rec.isCorrect ? '⭕ 정답' : `❌ 오답 (입력: ${rec.userAnswer || '없음'})`}
+              </div>
+            </div>
+          </div>
+          <span class="text-xs font-bold text-indigo-600 bg-white px-2.5 py-1 rounded-lg border border-indigo-100">🔊 발음</span>
+        `;
+        row.addEventListener('click', () => speakEnglish(rec.word.en));
+        reviewList.appendChild(row);
+      });
+    }
+
+    function downloadJsonObject(obj, filename) {
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'questions.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ==================== 10. EVENT WIRING & INITIALIZATION ====================
+    function switchTab(tabId) {
+      state.currentTab = tabId;
+      document.querySelectorAll('.nav-tab-btn').forEach((btn) => {
+        const isTarget = btn.getAttribute('data-tab') === tabId;
+        btn.className = isTarget
+          ? 'nav-tab-btn flex-1 min-w-[125px] py-3 px-3 text-sm font-bold border-b-4 border-amber-400 bg-indigo-800/70 text-amber-300 flex items-center justify-center gap-2 whitespace-nowrap'
+          : 'nav-tab-btn flex-1 min-w-[125px] py-3 px-3 text-sm font-bold border-b-4 border-transparent text-indigo-100 hover:text-white flex items-center justify-center gap-2 whitespace-nowrap';
+      });
+
+      const views = {
+        writing: document.getElementById('view-writing'),
+        listening: document.getElementById('view-listening'),
+        grammar: document.getElementById('view-grammar'),
+        sentence: document.getElementById('view-sentence'),
+        vocabtest: document.getElementById('view-vocabtest')
+      };
+
+      Object.keys(views).forEach((k) => {
+        const el = views[k];
+        if (k === tabId) {
+          el.classList.remove('hidden');
+          if (k === 'writing' || k === 'grammar') {
+            el.classList.add('grid');
+          } else {
+            el.classList.add('flex');
+          }
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('grid', 'flex');
+        }
+      });
+
+      if (tabId === 'writing') {
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+          renderWritingSection();
+        }, 20);
+      } else if (tabId === 'listening') {
+        renderListeningCards();
+        if (state.listenSubMode === 'quiz' && !state.listenQuizTarget) {
+          generateListeningQuizQuestion();
+        }
+      } else if (tabId === 'grammar') {
+        renderGrammarSection();
+      } else if (tabId === 'sentence') {
+        initSentenceProblem();
+      } else if (tabId === 'vocabtest') {
+        if (state.testQuestions.length === 0) {
+          startVocabTest();
+        }
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedState();
+      rebuildUnitSelectDropdown();
+      updateHeaderStats();
+      initSpenCanvas();
+      renderWritingSection();
+
+      if (state.githubJsonUrl) {
+        document.getElementById('githubJsonUrlInput').value = state.githubJsonUrl;
+      }
+      // Try auto-loading questions.json from same GitHub Pages folder or saved URL
+      fetchQuestionsFromGithub(state.githubJsonUrl || './questions.json', true);
+
+      // GitHub Sync Modal wiring
+      const githubModal = document.getElementById('githubSyncModal');
+      document.getElementById('openGithubModalBtn').addEventListener('click', () => {
+        githubModal.classList.remove('hidden');
+      });
+      document.getElementById('closeGithubModalBtn').addEventListener('click', () => {
+        githubModal.classList.add('hidden');
+      });
+
+      document.querySelectorAll('.modal-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const target = btn.getAttribute('data-modal-tab');
+          document.querySelectorAll('.modal-tab-btn').forEach(b => {
+            b.className = b === btn
+              ? 'modal-tab-btn px-4 py-2.5 rounded-t-xl font-extrabold text-xs sm:text-sm bg-white text-indigo-700 border-t border-x border-slate-200'
+              : 'modal-tab-btn px-4 py-2.5 rounded-t-xl font-extrabold text-xs sm:text-sm text-slate-600 hover:text-slate-900';
+          });
+          document.getElementById('modalViewSync').classList.toggle('hidden', target !== 'sync');
+          document.getElementById('modalViewBuilder').classList.toggle('hidden', target !== 'builder');
+          document.getElementById('modalViewGuide').classList.toggle('hidden', target !== 'guide');
+        });
+      });
+
+      document.getElementById('fetchGithubNowBtn').addEventListener('click', async () => {
+        const inputUrl = document.getElementById('githubJsonUrlInput').value.trim() || './questions.json';
+        const ok = await fetchQuestionsFromGithub(inputUrl, false);
+        if (ok) githubModal.classList.add('hidden');
+      });
+
+      document.getElementById('restoreDefaultPackBtn').addEventListener('click', () => {
+        VOCAB_DATA = [...DEFAULT_VOCAB_DATA];
+        GRAMMAR_QUESTIONS = [...DEFAULT_GRAMMAR_QUESTIONS];
+        SENTENCE_PROBLEMS = [...DEFAULT_SENTENCE_PROBLEMS];
+        state.packTitle = '기본 1~5단원 (25단어)';
+        document.getElementById('currentPackTitleBadge').textContent = state.packTitle;
+        document.getElementById('syncStatusBadge').textContent = '기본 내장 데이터 사용 중';
+        rebuildUnitSelectDropdown();
+        updateHeaderStats();
+        renderWritingSection();
+        renderListeningCards();
+        renderGrammarSection();
+        initSentenceProblem();
+        startVocabTest();
+        saveState(null);
+        showToast('기본 1~5단원(25단어) 문제집으로 복원되었습니다.');
+      });
+
+      document.getElementById('downloadJsonBtn').addEventListener('click', () => {
+        const pack = {
+          title: state.packTitle,
+          updatedAt: new Date().toISOString().slice(0, 10),
+          vocab: VOCAB_DATA,
+          grammar: GRAMMAR_QUESTIONS,
+          sentences: SENTENCE_PROBLEMS
+        };
+        downloadJsonObject(pack, 'questions.json');
+        showToast('questions.json 파일이 다운로드되었습니다. GitHub 저장소에 올려주세요!');
+      });
+
+      document.getElementById('uploadJsonFileInput').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(reader.result);
+            applyQuestionPack(parsed, true);
+            githubModal.classList.add('hidden');
+          } catch (err) {
+            showToast('JSON 파일 형식이 올바르지 않습니다.');
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      document.getElementById('loadSampleWeekBtn').addEventListener('click', () => {
+        document.getElementById('customPackTitleInput').value = '2~4주차 날씨·동물·취미 문제집 (12단어)';
+        document.getElementById('quickBuilderTextarea').value = SAMPLE_WEEK2_TEXT;
+      });
+
+      document.getElementById('applyQuickBuilderBtn').addEventListener('click', () => {
+        const title = document.getElementById('customPackTitleInput').value.trim();
+        const raw = document.getElementById('quickBuilderTextarea').value.trim();
+        const pack = parseQuickBuilderText(raw, title);
+        if (!pack) {
+          showToast('단어 목록을 형식에 맞게 한 줄 이상 입력해 주세요.');
+          return;
+        }
+        applyQuestionPack(pack, true);
+        githubModal.classList.add('hidden');
+      });
+
+      document.getElementById('exportQuickBuilderJsonBtn').addEventListener('click', () => {
+        const title = document.getElementById('customPackTitleInput').value.trim();
+        const raw = document.getElementById('quickBuilderTextarea').value.trim();
+        const pack = parseQuickBuilderText(raw, title);
+        if (!pack) {
+          showToast('단어 목록을 먼저 입력하거나 [샘플 주차 불러오기]를 눌러주세요.');
+          return;
+        }
+        applyQuestionPack(pack, false);
+        downloadJsonObject(pack, 'questions.json');
+        showToast('생성된 주간 문제집이 questions.json으로 다운로드되었습니다!');
+      });
+
+      // Navigation tabs
+      document.querySelectorAll('.nav-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          switchTab(btn.getAttribute('data-tab'));
+        });
+      });
+
+      // Unit Selector
+      document.getElementById('unitSelect').addEventListener('change', (e) => {
+        state.selectedUnit = e.target.value;
+        state.writingIndex = 0;
+        state.grammarIndex = 0;
+        state.sentenceIndex = 0;
+        renderWritingSection();
+        renderListeningCards();
+        if (state.listenSubMode === 'quiz') generateListeningQuizQuestion();
+        renderGrammarSection();
+        initSentenceProblem();
+        if (state.currentTab === 'vocabtest') startVocabTest();
+      });
+
+      // Speech Speed Toggle
+      document.getElementById('speedToggleBtn').addEventListener('click', () => {
+        if (state.speechRate === 0.9) {
+          state.speechRate = 0.65;
+          document.getElementById('speedLabel').textContent = '천천히 (0.65x)';
+        } else if (state.speechRate === 0.65) {
+          state.speechRate = 1.05;
+          document.getElementById('speedLabel').textContent = '빠르게 (1.05x)';
+        } else {
+          state.speechRate = 0.9;
+          document.getElementById('speedLabel').textContent = '보통 (0.9x)';
+        }
+      });
+
+      // Sound Effect Toggle
+      document.getElementById('soundToggleBtn').addEventListener('click', () => {
+        state.soundOn = !state.soundOn;
+        document.getElementById('soundIcon').textContent = state.soundOn ? '🔔 효과음 ON' : '🔕 효과음 OFF';
+      });
+
+      // Reset Progress
+      document.getElementById('resetProgressBtn').addEventListener('click', () => {
+        state.score = 0;
+        state.writtenWords = {};
+        state.listeningCorrectCount = 0;
+        state.listeningStreak = 0;
+        state.grammarSolved = {};
+        state.sentenceSolved = {};
+        updateHeaderStats();
+        renderWritingSection();
+        renderGrammarSection();
+        showToast('학습 점수와 기록이 초기화되었습니다.');
+      });
+
+      // Tab 1 controls
+      document.getElementById('speakCurrentWordBtn').addEventListener('click', () => {
+        speakEnglish(getCurrentWriteWord().en);
+      });
+      document.getElementById('speakCurrentExampleBtn').addEventListener('click', () => {
+        speakEnglish(getCurrentWriteWord().exEn);
+      });
+      document.querySelectorAll('.pen-color-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.penColor = btn.getAttribute('data-color');
+          document.querySelectorAll('.pen-color-btn').forEach(b => b.classList.remove('ring-2', 'ring-offset-2', 'ring-indigo-600'));
+          btn.classList.add('ring-2', 'ring-offset-2', 'ring-indigo-600');
+        });
+      });
+      document.getElementById('penSizeRange').addEventListener('input', (e) => {
+        state.penSize = Number(e.target.value);
+      });
+      document.getElementById('toggleTraceGuideBtn').addEventListener('click', (e) => {
+        state.showTraceGuide = !state.showTraceGuide;
+        const traceEl = document.getElementById('canvasTraceWord');
+        traceEl.style.opacity = state.showTraceGuide ? '1' : '0';
+        e.currentTarget.textContent = state.showTraceGuide ? '👁️ 따라쓰기 가이드 숨기기' : '👁️ 따라쓰기 가이드 보기';
+      });
+      document.getElementById('clearCanvasBtn').addEventListener('click', clearSpenCanvas);
+      document.getElementById('resetScrambleBtn').addEventListener('click', () => {
+        buildScrambleForWord(getCurrentWriteWord().en);
+      });
+      document.getElementById('prevWriteWordBtn').addEventListener('click', () => {
+        const list = getFilteredVocab();
+        state.writingIndex = (state.writingIndex - 1 + list.length) % list.length;
+        renderWritingSection();
+        speakEnglish(getCurrentWriteWord().en);
+      });
+      document.getElementById('nextWriteWordBtn').addEventListener('click', () => {
+        const list = getFilteredVocab();
+        state.writingIndex = (state.writingIndex + 1) % list.length;
+        renderWritingSection();
+        speakEnglish(getCurrentWriteWord().en);
+      });
+      document.getElementById('markWriteCompleteBtn').addEventListener('click', () => {
+        const word = getCurrentWriteWord();
+        if (!state.writtenWords[word.id]) {
+          state.writtenWords[word.id] = true;
+          state.score += 10;
+          playTone('correct');
+          updateHeaderStats();
+          renderWritingWordList();
+          showToast(`"${word.en}" 단어 쓰기 완료! (+10점)`);
+        } else {
+          showToast(`이미 완료한 단어입니다. 다음 단어로 넘어가 보세요!`);
+        }
+      });
+
+      // Tab 2 controls
+      const btnCards = document.getElementById('listenSubModeCards');
+      const btnQuiz = document.getElementById('listenSubModeQuiz');
+      const cardsCont = document.getElementById('listenCardsContainer');
+      const quizCont = document.getElementById('listenQuizContainer');
+
+      btnCards.addEventListener('click', () => {
+        state.listenSubMode = 'cards';
+        btnCards.className = 'px-4 py-2 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 text-white shadow-sm';
+        btnQuiz.className = 'px-4 py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-700 hover:bg-white';
+        cardsCont.classList.remove('hidden');
+        quizCont.classList.add('hidden');
+        quizCont.classList.remove('flex');
+      });
+
+      btnQuiz.addEventListener('click', () => {
+        state.listenSubMode = 'quiz';
+        btnQuiz.className = 'px-4 py-2 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 text-white shadow-sm';
+        btnCards.className = 'px-4 py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-700 hover:bg-white';
+        cardsCont.classList.add('hidden');
+        quizCont.classList.remove('hidden');
+        quizCont.classList.add('flex');
+        generateListeningQuizQuestion();
+      });
+
+      document.getElementById('playListenQuizAudioBtn').addEventListener('click', () => {
+        if (state.listenQuizTarget) speakEnglish(state.listenQuizTarget.en);
+      });
+      document.getElementById('playListenQuizSentenceBtn').addEventListener('click', () => {
+        if (state.listenQuizTarget) speakEnglish(state.listenQuizTarget.exEn);
+      });
+      document.getElementById('nextListenQuizBtn').addEventListener('click', generateListeningQuizQuestion);
+
+      // Tab 3 controls
+      document.getElementById('speakGrammarSentenceBtn').addEventListener('click', () => {
+        const list = getFilteredGrammar();
+        const item = list[state.grammarIndex] || GRAMMAR_QUESTIONS[0];
+        speakEnglish(item.fullEn);
+      });
+      document.getElementById('prevGrammarBtn').addEventListener('click', () => {
+        const list = getFilteredGrammar();
+        state.grammarIndex = (state.grammarIndex - 1 + list.length) % list.length;
+        renderGrammarSection();
+      });
+      document.getElementById('nextGrammarBtn').addEventListener('click', () => {
+        const list = getFilteredGrammar();
+        state.grammarIndex = (state.grammarIndex + 1) % list.length;
+        renderGrammarSection();
+      });
+
+      // Tab 4 controls
+      document.getElementById('speakTargetSentenceBtn').addEventListener('click', () => {
+        const list = getFilteredSentences();
+        const item = list[state.sentenceIndex] || SENTENCE_PROBLEMS[0];
+        speakEnglish(item.tokens.join(' '));
+      });
+      document.getElementById('clearSentenceTrayBtn').addEventListener('click', () => {
+        state.sentenceBank.forEach(b => { b.used = false; });
+        state.sentenceTray = [];
+        renderSentenceBuilderUI();
+      });
+      document.getElementById('prevSentenceBtn').addEventListener('click', () => {
+        const list = getFilteredSentences();
+        state.sentenceIndex = (state.sentenceIndex - 1 + list.length) % list.length;
+        initSentenceProblem();
+      });
+      document.getElementById('nextSentenceBtn').addEventListener('click', () => {
+        const list = getFilteredSentences();
+        state.sentenceIndex = (state.sentenceIndex + 1) % list.length;
+        initSentenceProblem();
+      });
+      document.getElementById('checkSentenceBtn').addEventListener('click', checkCurrentSentence);
+
+      // Tab 5 controls
+      document.getElementById('startNewTestBtn').addEventListener('click', startVocabTest);
+      document.getElementById('testTypeSelect').addEventListener('change', startVocabTest);
+      document.getElementById('testSpeakPromptBtn').addEventListener('click', () => {
+        const current = state.testQuestions[state.testIndex];
+        if (current) speakEnglish(current.word.en);
+      });
+      document.getElementById('submitTestSpellingBtn').addEventListener('click', () => {
+        if (state.testAnsweredCurrent) return;
+        const current = state.testQuestions[state.testIndex];
+        if (!current) return;
+        const raw = document.getElementById('testSpellingInput').value.trim().toLowerCase();
+        document.getElementById('testSpellingInput').disabled = true;
+        handleTestAnswer(raw === current.word.en.toLowerCase(), raw);
+      });
+      document.getElementById('testSpellingInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (!state.testAnsweredCurrent) {
+            document.getElementById('submitTestSpellingBtn').click();
+          } else {
+            document.getElementById('nextTestQuestionBtn').click();
+          }
+        }
+      });
+      document.getElementById('nextTestQuestionBtn').addEventListener('click', () => {
+        if (state.testIndex + 1 < state.testQuestions.length) {
+          state.testIndex += 1;
+          renderTestQuestion();
+        } else {
+          showVocabTestResults();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
